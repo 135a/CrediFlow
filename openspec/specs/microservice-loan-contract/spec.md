@@ -31,3 +31,11 @@ TBD
 #### Scenario: 查询已生成协议
 - **WHEN** 授权主体请求查询协议
 - **THEN** 系统 MUST 返回该笔借款对应的有效 PDF 访问链接，且 MUST 记录查询审计
+
+### Requirement: 电子合同的自动生成
+系统 MUST 监听借款通过事件，并自动基于用户的借款要素和模板生成具有法律约束力的电子合同文件记录。
+
+#### Scenario: 成功生成借款合同
+- **WHEN** 接收到 `LOAN_APPROVED_EVENT` 消息
+- **THEN** 系统 MUST 落库一条完整的借款合同记录（包含合同号、借款总额、用户签名指引等），并在处理完成后 MUST 向 MQ 投递 `CONTRACT_READY_EVENT` 消息
+

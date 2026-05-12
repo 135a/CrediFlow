@@ -223,29 +223,30 @@
         }
       }
     },
-    "/api/v1/agent/rag": {
+    "/api/internal/post-loan/trigger-overdue-inspection": {
       "post": {
-        "tags": ["Data Agent (Python)"],
-        "summary": "Ask the AI Agent using RAG",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": { "type": "string", "example": "What is the max loan amount?" }
-                }
-              }
-            }
-          }
-        },
+        "tags": ["Post-Loan Service"],
+        "summary": "Trigger daily overdue inspection",
         "responses": {
-          "200": { "description": "Agent response with source IDs" }
+          "200": { "description": "Inspection completed" }
         }
       }
     },
-    "/api/v1/agent/nl2sql": {
+    "/api/admin/system/credit/application/{id}/approve": {
+      "post": {
+        "tags": ["System Admin Service"],
+        "summary": "Force approve credit application via RBAC",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } },
+          { "name": "X-User-Role", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Approved" }
+        }
+      }
+    },
+    "/nl2sql": {
       "post": {
         "tags": ["Data Agent (Python)"],
         "summary": "Execute generated SQL via NL2SQL",
@@ -256,7 +257,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "sql": { "type": "string", "example": "SELECT * FROM cf_user LIMIT 10" }
+                  "query": { "type": "object" }
                 }
               }
             }
@@ -264,6 +265,37 @@
         },
         "responses": {
           "200": { "description": "SQL Result rows" }
+        }
+      }
+    },
+    "/post-loan-warning": {
+      "post": {
+        "tags": ["Data Agent (Python)"],
+        "summary": "Generate overdue warning report",
+        "responses": {
+          "200": { "description": "Markdown report" }
+        }
+      }
+    },
+    "/rag/ask": {
+      "post": {
+        "tags": ["Data Agent (Python)"],
+        "summary": "Ask the AI Agent using RAG",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Agent response with source IDs" }
         }
       }
     }

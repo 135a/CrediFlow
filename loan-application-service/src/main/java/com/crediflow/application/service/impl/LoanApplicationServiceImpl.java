@@ -28,6 +28,7 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     private UserClient userClient;
 
     @Override
+    @com.crediflow.common.annotation.Idempotent(key = "'LOAN_APP:' + #idmpToken")
     public LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idmpToken) {
         // 0. KYC 校验
         Result<Map<String, Object>> kycResult = userClient.getKycStatus(userId);
@@ -39,10 +40,6 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         if (stepStatus == null || stepStatus < 3) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
         }
-
-        // 1. 幂等校验（实际应使用 Redis + Redisson 获取锁并存储 idmpToken，这里简写业务逻辑）
-        // boolean locked = redisTemplate.opsForValue().setIfAbsent("IDMP:LOAN:" + idmpToken, userId, 10, TimeUnit.MINUTES);
-        // if (!locked) throw new BusinessException(ErrorCode.BUSINESS_ERROR, "请勿重复提交申请");
 
         // 2. 联合校验：检查有效授信额度
         Result<Map<String, Object>> creditResult = creditClient.getActiveCreditInternal(userId);
@@ -74,9 +71,10 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     }
 
     @Autowired
-    private org.apache.rocketmq.spring.core.RocketMQTemplate rocketMQTemplate;
+    private com.crediflow.application.mapper.LocalMessageMapper localMessageMapper;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void approve(Long applicationId) {
         LoanApplication application = this.getById(applicationId);
         if (!"PENDING".equals(application.getStatus())) {
@@ -91,7 +89,18 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         message.setUserId(application.getUserId());
         message.setEventType(com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED);
         
-        rocketMQTemplate.convertAndSend(com.crediflow.common.event.MqConstants.TOPIC_LOAN_LIFECYCLE + ":" + com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED, message);
+        try {
+            com.crediflow.application.entity.LocalMessage localMsg = new com.crediflow.application.entity.LocalMessage();
+            localMsg.setTopic(com.crediflow.common.event.MqConstants.TOPIC_LOAN_LIFECYCLE);
+            localMsg.setTag(com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED);
+            localMsg.setPayload(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(message));
+            localMsg.setStatus("NEW");
+            localMsg.setCreatedAt(new Date());
+            localMsg.setUpdatedAt(new Date());
+            localMessageMapper.insert(localMsg);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Failed to save local message");
+        }
     }
 
     @Override

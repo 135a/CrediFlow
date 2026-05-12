@@ -13,7 +13,10 @@ public class RepaymentController {
     private RepaymentPlanService repaymentPlanService;
 
     @PostMapping("/pay/{planId}")
-    public Result<Void> pay(@PathVariable Long planId, @RequestHeader("X-User-Id") Long userId) {
+    @com.crediflow.common.annotation.Idempotent(key = "'REPAY_APP:' + #idmpToken")
+    public Result<Void> pay(@PathVariable Long planId, 
+                            @RequestHeader("X-User-Id") Long userId,
+                            @RequestHeader("Idempotency-Key") String idmpToken) {
         repaymentPlanService.processRepayment(planId, userId);
         return Result.success(null);
     }

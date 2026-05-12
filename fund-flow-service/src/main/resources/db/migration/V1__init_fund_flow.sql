@@ -12,3 +12,11 @@ CREATE TABLE IF NOT EXISTS cf_fund_flow (
     INDEX idx_user_id (user_id),
     INDEX idx_application_id (application_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资金流水表';
+
+CREATE TABLE IF NOT EXISTS cf_mq_idempotent_log (
+    message_id VARCHAR(128) PRIMARY KEY COMMENT 'MQ Message ID',
+    topic VARCHAR(128) NOT NULL,
+    tag VARCHAR(128),
+    consumer_group VARCHAR(128) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='MQ防重日志表';
