@@ -77,7 +77,8 @@ async def evaluate_risk(req: dict):
     has_overdue = isinstance(history_res, list) and len(history_res) > 0
 
     # 步骤 3：查外部征信（NL2API）
-    # 内部系统封装的芝麻分接口
+    # TODO: 当前为了跑通开源演示，仅调用内部 Java 服务查询历史授信作为 mock。
+    # TODO: 生产环境中，需在此处（或 Java 的 integration-service 中）真实对接百行征信/芝麻信用企业版等第三方数据源。
     api_res = nl2api_engine.call_api("get_active_credit", {"userId": user_id})
     credit_status = api_res.get("data", {}).get("creditStatus", "UNKNOWN")
 

@@ -3,6 +3,7 @@ from config import Config
 
 # API 白名单
 API_WHITELIST = {
+    # TODO: 接入真实征信后，需替换为带 HTTPS+RSA 签名的真实外部征信接口网关
     "get_active_credit": "/api/app/credit/internal/active",
 }
 
