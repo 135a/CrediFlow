@@ -3,45 +3,118 @@ package jobs
 import (
 	"bytes"
 	"crediflow/batch-service/config"
+	"crediflow/batch-service/lock"
+	"crediflow/batch-service/reporter"
 	"fmt"
+	"io"
 	"log"
+	"math"
 	"net/http"
 	"time"
 )
 
-// RunDeductJob 模拟代扣任务调度
+// httpPostWithRetry 带指数退避重试的 HTTP POST
+func httpPostWithRetry(url string, body []byte, headers map[string]string, maxRetries int) (*http.Response, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+			log.Printf("[HTTP] Retry %d/%d after %v...\n", attempt, maxRetries, backoff)
+			time.Sleep(backoff)
+		}
+
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+		if err != nil {
+			return nil, fmt.Errorf("create request failed: %w", err)
+		}
+
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			log.Printf("[HTTP] Attempt %d failed: %v\n", attempt+1, err)
+			continue
+		}
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		log.Printf("[HTTP] Attempt %d got status %d\n", attempt+1, resp.StatusCode)
+	}
+
+	return nil, fmt.Errorf("all %d retries exhausted: %w", maxRetries+1, lastErr)
+}
+
+// RunDeductJob 自动代扣还款任务（带分布式锁 + 重试）
 func RunDeductJob(cfg *config.Config) {
-	log.Println("[DeductJob] Started")
-	start := time.Now()
+	lockKey := fmt.Sprintf("lock:batch:deduct:%s", time.Now().Format("20060102"))
 
-	// 10.2 代扣任务：调用还款服务 HTTPS 接口，携带幂等键
-	// 这里用 HTTP POST 模拟对 repayment-service 的调用
-	url := fmt.Sprintf("%s/api/app/repayment/active-repay", cfg.RepaymentServiceURL)
-
-	// 模拟针对某个 planId 的代扣请求
-	planId := "12345"
-	idmpToken := fmt.Sprintf("BATCH_DEDUCT_%s_%s", planId, time.Now().Format("20060102"))
-
-	reqBody := []byte(fmt.Sprintf(`planId=%s&idmpToken=%s`, planId, idmpToken))
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		log.Printf("[DeductJob] Error creating request: %v\n", err)
+	if !lock.Acquire(lockKey, 30*time.Minute) {
+		reporter.Report(reporter.JobResult{
+			JobName: "DeductJob", Status: "SKIPPED", StartTime: time.Now(),
+			Detail: "Lock held by another instance",
+		})
 		return
 	}
+	defer lock.Release(lockKey)
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("X-User-Id", "999") // 模拟调度系统/系统级用户
+	reporter.RunWithReport("DeductJob", func() error {
+		url := fmt.Sprintf("%s/api/internal/repayment/batch-deduct", cfg.RepaymentServiceURL)
+		idmpToken := fmt.Sprintf("BATCH_DEDUCT_%s", time.Now().Format("20060102"))
 
-	// 实际代码中建议加重试逻辑或配置 HTTP Client 超时
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+		body := []byte(fmt.Sprintf(`{"idmpToken":"%s","triggerSource":"scheduler"}`, idmpToken))
+		headers := map[string]string{
+			"Content-Type":     "application/json",
+			"X-Internal-Token": "batch-scheduler",
+		}
 
-	if err != nil {
-		log.Printf("[DeductJob] Request failed: %v\n", err)
-	} else {
+		resp, err := httpPostWithRetry(url, body, headers, 3)
+		if err != nil {
+			return fmt.Errorf("deduct batch call failed: %w", err)
+		}
 		defer resp.Body.Close()
-		log.Printf("[DeductJob] Repayment API called. Status: %s\n", resp.Status)
-	}
+		log.Printf("[DeductJob] Completed. Status: %s\n", resp.Status)
+		return nil
+	})
+}
 
-	log.Printf("[DeductJob] Finished in %v\n", time.Since(start))
+// RunOverdueJob 逾期巡检任务（带分布式锁 + 重试）
+func RunOverdueJob(cfg *config.Config) {
+	lockKey := fmt.Sprintf("lock:batch:overdue:%s", time.Now().Format("20060102"))
+
+	if !lock.Acquire(lockKey, 30*time.Minute) {
+		reporter.Report(reporter.JobResult{
+			JobName: "OverdueJob", Status: "SKIPPED", StartTime: time.Now(),
+			Detail: "Lock held by another instance",
+		})
+		return
+	}
+	defer lock.Release(lockKey)
+
+	reporter.RunWithReport("OverdueJob", func() error {
+		url := fmt.Sprintf("%s/api/internal/post-loan/overdue/scan", cfg.PostLoanServiceURL)
+
+		body := []byte(fmt.Sprintf(`{"scanDate":"%s","triggerSource":"scheduler"}`, time.Now().Format("2006-01-02")))
+		headers := map[string]string{
+			"Content-Type":     "application/json",
+			"X-Internal-Token": "batch-scheduler",
+		}
+
+		resp, err := httpPostWithRetry(url, body, headers, 3)
+		if err != nil {
+			return fmt.Errorf("overdue scan call failed: %w", err)
+		}
+		defer resp.Body.Close()
+		log.Printf("[OverdueJob] Completed. Status: %s\n", resp.Status)
+		return nil
+	})
 }

@@ -182,8 +182,10 @@ services:
       context: ./batch-service
       dockerfile: Dockerfile
     networks: [internal]
+    env_file:
+      - .env
     depends_on:
-      mysql:
+      redis:
         condition: service_healthy
 
   data-agent:

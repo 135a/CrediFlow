@@ -1,8 +1,4 @@
-## Purpose
-
-Go 分布式任务调度服务，作为系统的"定时任务中枢"，负责按计划触发代扣、逾期巡检、罚息计算、还款提醒、风控异步分发和消息推送等批处理任务。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Go 分布式调度服务完整实现
 
