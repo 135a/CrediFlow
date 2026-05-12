@@ -9,3 +9,8 @@ spring:
         server-addr: ${NACOS_SERVER:nacos:8848}
         namespace: ${NACOS_NAMESPACE:}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
+
+crediflow:
+  post-loan:
+    # 默认逾期罚息日利率为万分之五，支持从环境变量或 Nacos 动态注入
+    penalty-rate: ${PENALTY_RATE:0.0005}

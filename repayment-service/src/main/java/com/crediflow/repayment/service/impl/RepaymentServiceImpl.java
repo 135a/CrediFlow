@@ -26,15 +26,25 @@ public class RepaymentServiceImpl extends ServiceImpl<RepaymentPlanMapper, Repay
 
     @Override
     public List<RepaymentPlan> generatePlans(Long userId, Long contractId, BigDecimal loanAmount, BigDecimal interestRate, Integer term) {
-        // 简单等额本息或等本等息算法，这里以等本等息为例
+        // 等本算法，利息按实际天数计算（日利率）
         BigDecimal principalPerPeriod = loanAmount.divide(new BigDecimal(term), 2, RoundingMode.HALF_UP);
-        BigDecimal interestPerPeriod = loanAmount.multiply(interestRate).divide(new BigDecimal(12), 2, RoundingMode.HALF_UP);
 
         List<RepaymentPlan> plans = new ArrayList<>();
         Calendar cal = Calendar.getInstance();
+        Date lastDate = cal.getTime();
         
         for (int i = 1; i <= term; i++) {
             cal.add(Calendar.MONTH, 1);
+            Date dueDate = cal.getTime();
+            
+            // 计算当期的实际天数
+            long diffInMillies = Math.abs(dueDate.getTime() - lastDate.getTime());
+            long daysInPeriod = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+            lastDate = dueDate;
+
+            // 利息 = 本金 * 日利率 * 计息天数
+            BigDecimal interestPerPeriod = loanAmount.multiply(interestRate).multiply(new BigDecimal(daysInPeriod)).setScale(2, RoundingMode.HALF_UP);
+
             RepaymentPlan plan = new RepaymentPlan();
             plan.setContractId(contractId);
             plan.setUserId(userId);
@@ -43,7 +53,7 @@ public class RepaymentServiceImpl extends ServiceImpl<RepaymentPlanMapper, Repay
             plan.setInterest(interestPerPeriod);
             plan.setPenalty(BigDecimal.ZERO);
             plan.setStatus("PENDING");
-            plan.setDueDate(cal.getTime());
+            plan.setDueDate(dueDate);
             plan.setCreatedAt(new Date());
             plan.setUpdatedAt(new Date());
             plans.add(plan);

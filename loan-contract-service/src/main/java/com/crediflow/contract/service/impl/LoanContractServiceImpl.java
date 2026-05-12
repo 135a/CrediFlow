@@ -22,6 +22,9 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
     @Autowired
     private PdfGeneratorUtil pdfGeneratorUtil;
 
+    @org.springframework.beans.factory.annotation.Value("${crediflow.contract.interest-rate:0.12}")
+    private String interestRateStr;
+
     @Override
     public Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, BigDecimal amount, Integer term, boolean agreed) {
         if (!agreed) {
@@ -31,8 +34,8 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         // 1. 生成合同号
         String contractNo = "CTR" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4);
 
-        // 2. 生成 PDF
-        String pdfLink = pdfGeneratorUtil.generateAndStoreContractPdf(contractNo, userId, amount.toString());
+        // 2. 生成 PDF，传入配置中的利率
+        String pdfLink = pdfGeneratorUtil.generateAndStoreContractPdf(contractNo, userId, amount.toString(), interestRateStr);
 
         // 3. 落库
         LoanContract contract = new LoanContract();
@@ -40,7 +43,7 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         contract.setApplicationId(applicationId);
         contract.setUserId(userId);
         contract.setLoanAmount(amount);
-        contract.setInterestRate(new BigDecimal("0.120000")); // 写死12%用于演示
+        contract.setInterestRate(new BigDecimal(interestRateStr)); // 从配置注入贷款利率
         contract.setTerm(term);
         contract.setStatus("EFFECTIVE");
         contract.setSignTime(new Date());

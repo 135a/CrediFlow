@@ -13,11 +13,15 @@ import java.util.Date;
 @Service
 public class PostLoanServiceImpl extends ServiceImpl<CollectionTaskMapper, CollectionTask> implements PostLoanService {
 
+    @org.springframework.beans.factory.annotation.Value("${crediflow.post-loan.penalty-rate:0.0005}")
+    private String penaltyRateStr;
+
     @Override
     public void processOverdue(Long planId, Long contractId, Long userId, Integer overdueDays, BigDecimal principal) {
-        // 1. 计算罚息：本金 * 逾期天数 * 0.0005 (日息万分之五)
+        // 1. 计算罚息：本金 * 逾期天数 * 配置的日利率
+        BigDecimal penaltyRate = new BigDecimal(penaltyRateStr);
         BigDecimal penalty = principal.multiply(new BigDecimal(overdueDays))
-                .multiply(new BigDecimal("0.0005"))
+                .multiply(penaltyRate)
                 .setScale(2, RoundingMode.HALF_UP);
         
         System.out.println("OVERDUE_PROCESS: Plan " + planId + " overdue for " + overdueDays + " days. Calculated penalty: " + penalty);
