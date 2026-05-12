@@ -15,7 +15,7 @@ public class CreditController {
     private CreditService creditService;
 
     @PostMapping("/apply")
-    public Result<CreditResult> applyCredit(@RequestHeader("X-User-Id") Long userId) {
+    public Result<com.crediflow.credit.entity.CreditApplication> applyCredit(@RequestHeader("X-User-Id") Long userId) {
         return Result.success(creditService.applyCredit(userId));
     }
 

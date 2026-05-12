@@ -208,7 +208,7 @@ CrediFlow/
 用户注册 → 实名认证 → 授信评估 → 贷款申请 → 合同签署 → 放款 → 分期还款 → 贷后管理
 ```
 
-### 🤖 AI 智能风控（ReAct 四步决策）
+### 🤖 AI 智能风控（ReAct 四步决策）与状态机流转
 
 Data Agent 作为系统的"智能审查员"，采用 ReAct 模式自主完成风控裁决：
 
@@ -218,6 +218,8 @@ Step 2: 查历史 (NL2SQL)   → 只读 MySQL 查询用户逾期记录
 Step 3: 查征信 (NL2API)   → 桥接内部芝麻信用分/黑名单接口
 Step 4: 综合裁决 (LLM)    → 大模型逻辑推理，输出 JSON 格式授信建议
 ```
+
+**审批状态机与人工兜底**：系统为每笔授信引入了完整的 `PENDING`(机审中) -> `APPROVED`/`REJECTED` 状态流转，全量持久化大模型审查依据 (`auditReason`)。在机审极端情况或误伤时，支持管理端进行人工干预强行通过，保障风控流程的鲁棒性与可追溯性。
 
 ### 🔌 多供应商可插拔适配
 
@@ -261,6 +263,8 @@ LLM 与 Embedding 均支持通过环境变量热切换，无需修改代码：
 | `/api/app/contract/sign` | POST | 签署电子合同 |
 | `/api/app/repayment/generate` | POST | 生成还款计划 |
 | `/api/app/repayment/active-repay` | POST | 主动还款 |
+| `/api/admin/credit/applications` | GET | (管理端) 按时间分页查询申请记录 |
+| `/api/admin/credit/application/{id}/approve` | POST | (管理端) 拒件人工强制通过 |
 | `/api/v1/agent/rag` | POST | RAG 知识问答 |
 | `/api/v1/agent/nl2sql` | POST | 自然语言查数据 |
 | `/api/v1/agent/nl2api` | POST | 自然语言调接口 |

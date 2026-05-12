@@ -108,6 +108,46 @@ async def evaluate_risk(req: dict):
         "reason": f"AI风控裁决结果。政策提示: {policy_info} | 决策过程追踪完毕。"
     }
 
+class OcrRequest(BaseModel):
+    image_base64: str
+
+@app.post("/api/v1/agent/ocr")
+async def extract_id_card_ocr(req: OcrRequest):
+    """
+    接收前端或 Java 端传来的 base64 图片，调用多模态大模型进行 OCR 解析。
+    返回姓名、身份证号和计算得出的年龄。
+    """
+    # 真实场景中，此处应调用 Qwen-VL 等视觉大模型：
+    # llm = get_active_vl_model()
+    # json_result = llm.generate("请提取图片中的真实姓名、身份证号，并计算年龄，以JSON格式输出", image=req.image_base64)
+    
+    # 这里模拟大模型解析成功的结构化数据
+    # 根据常识，我们可以从模拟生成的身份证号计算年龄，这里直接 mock
+    import random
+    age = random.randint(20, 45)
+    return {
+        "status": "SUCCESS",
+        "data": {
+            "realName": "张三(OCR识别)",
+            "idCardNo": f"11010519{90+age%10}01011234",
+            "age": age
+        }
+    }
+
+class FaceVerifyRequest(BaseModel):
+    id_card_no: str
+    face_image_base64: str
+
+@app.post("/api/v1/agent/face_verify")
+async def face_verify(req: FaceVerifyRequest):
+    """模拟人脸活体比对网关"""
+    # 生产环境中应调用公安部第一研究所或旷视等第三方人脸比对接口
+    return {
+        "status": "SUCCESS",
+        "score": 98.5,
+        "message": "活体检测通过，且与网纹照比对一致"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

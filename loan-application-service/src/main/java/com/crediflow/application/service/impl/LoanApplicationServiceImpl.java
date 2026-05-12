@@ -16,14 +16,30 @@ import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
+import com.crediflow.application.feign.UserClient;
+
 @Service
 public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMapper, LoanApplication> implements LoanApplicationService {
 
     @Autowired
     private CreditClient creditClient;
 
+    @Autowired
+    private UserClient userClient;
+
     @Override
     public LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idmpToken) {
+        // 0. KYC 校验
+        Result<Map<String, Object>> kycResult = userClient.getKycStatus(userId);
+        if (kycResult == null || kycResult.getData() == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
+        }
+        Map<String, Object> kycData = kycResult.getData();
+        Integer stepStatus = (Integer) kycData.get("stepStatus");
+        if (stepStatus == null || stepStatus < 3) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
+        }
+
         // 1. 幂等校验（实际应使用 Redis + Redisson 获取锁并存储 idmpToken，这里简写业务逻辑）
         // boolean locked = redisTemplate.opsForValue().setIfAbsent("IDMP:LOAN:" + idmpToken, userId, 10, TimeUnit.MINUTES);
         // if (!locked) throw new BusinessException(ErrorCode.BUSINESS_ERROR, "请勿重复提交申请");

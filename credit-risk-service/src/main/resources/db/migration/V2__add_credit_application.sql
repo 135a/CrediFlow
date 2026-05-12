@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS cf_credit_application (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '申请单ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    apply_amount DECIMAL(10,2) NOT NULL COMMENT '申请额度/系统默认请求',
+    suggested_amount DECIMAL(10,2) COMMENT 'AI建议额度',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '状态(PENDING/APPROVED/REJECTED)',
+    audit_reason VARCHAR(1024) COMMENT '机审或人工审批理由',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='授信申请流水表';
