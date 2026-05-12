@@ -57,8 +57,9 @@
                 "type": "object",
                 "properties": {
                   "phone": { "type": "string", "example": "13800138000" },
-                  "password": { "type": "string", "example": "encrypted_password_hash" },
-                  "idCard": { "type": "string", "example": "110105199001011234" }
+                  "password": { "type": "string", "example": "password123" },
+                  "confirmPassword": { "type": "string", "example": "password123" },
+                  "smsCode": { "type": "string", "example": "123456" }
                 }
               }
             }

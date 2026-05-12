@@ -17,8 +17,11 @@ public class UserController {
 
     @IgnoreAuth
     @PostMapping("/register")
-    public Result<String> register(@RequestParam String phone, @RequestParam String password) {
-        String token = userService.register(phone, password);
+    public Result<String> register(@RequestParam String phone, 
+                                   @RequestParam String password,
+                                   @RequestParam String confirmPassword,
+                                   @RequestParam String smsCode) {
+        String token = userService.register(phone, password, confirmPassword, smsCode);
         return Result.success(token);
     }
 

@@ -19,8 +19,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
-    public String register(String phone, String password) {
-        // 检查是否存在
+    public String register(String phone, String password, String confirmPassword, String smsCode) {
+        // 1. 两次密码校验
+        if (password == null || !password.equals(confirmPassword)) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "两次输入的密码不一致");
+        }
+
+        // 2. 短信验证码校验
+        // TODO: 后续需对接真实短信网关（如阿里云SMS/腾讯云短信），并从 Redis 读取缓存的真实验证码进行比对
+        if (smsCode == null || smsCode.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "短信验证码不能为空");
+        }
+        if (!"123456".equals(smsCode)) { // 本地开发暂用万能验证码
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "验证码错误");
+        }
+
+        // 3. 检查手机号是否已被注册
         long count = this.count(new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
         if (count > 0) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "手机号已注册");
