@@ -18,14 +18,28 @@ public class CreditAdminController {
     @Autowired
     private CreditApplicationService creditApplicationService;
 
+    @Autowired
+    private com.crediflow.credit.feign.UserClient userClient;
+
     @GetMapping("/applications")
     public Result<Page<CreditApplication>> listApplications(
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime) {
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
+            @RequestParam(required = false) String phone) {
         
         LambdaQueryWrapper<CreditApplication> queryWrapper = new LambdaQueryWrapper<>();
+        
+        if (phone != null && !phone.trim().isEmpty()) {
+            Result<Long> userRes = userClient.getUserIdByPhone(phone);
+            if (userRes == null || userRes.getData() == null) {
+                // 如果找不到对应的用户，直接返回空分页
+                return Result.success(new Page<>(current, size));
+            }
+            queryWrapper.eq(CreditApplication::getUserId, userRes.getData());
+        }
+
         if (startTime != null) {
             queryWrapper.ge(CreditApplication::getCreatedAt, startTime);
         }

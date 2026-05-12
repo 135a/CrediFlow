@@ -73,15 +73,25 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         return application;
     }
 
+    @Autowired
+    private org.apache.rocketmq.spring.core.RocketMQTemplate rocketMQTemplate;
+
     @Override
     public void approve(Long applicationId) {
         LoanApplication application = this.getById(applicationId);
         if (!"PENDING".equals(application.getStatus())) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "申请单状态非法，无法通过");
         }
-        application.setStatus("APPROVED");
+        // 根据规范，状态置为“处理中（生成合同阶段）”
+        application.setStatus("CONTRACT_PROCESSING");
         this.updateById(application);
-        // TODO: 触发合同生成事件或同步调用合同服务
+        
+        com.crediflow.common.event.LoanLifecycleMessage message = new com.crediflow.common.event.LoanLifecycleMessage();
+        message.setLoanApplicationId(application.getId());
+        message.setUserId(application.getUserId());
+        message.setEventType(com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED);
+        
+        rocketMQTemplate.convertAndSend(com.crediflow.common.event.MqConstants.TOPIC_LOAN_LIFECYCLE + ":" + com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED, message);
     }
 
     @Override

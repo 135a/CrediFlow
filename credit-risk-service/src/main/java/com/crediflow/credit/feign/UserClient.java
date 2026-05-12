@@ -11,4 +11,7 @@ import java.util.Map;
 public interface UserClient {
     @GetMapping("/api/app/user/kyc/status")
     Result<Map<String, Object>> getKycStatus(@RequestParam("userId") Long userId);
+
+    @GetMapping("/api/internal/user/by-phone")
+    Result<Long> getUserIdByPhone(@RequestParam("phone") String phone);
 }

@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS cf_loan_contract (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    contract_no VARCHAR(64) NOT NULL UNIQUE,
+    application_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    contract_url VARCHAR(255),
+    status VARCHAR(32) NOT NULL DEFAULT 'GENERATED' COMMENT 'GENERATED, SIGNED, ARCHIVED',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    INDEX idx_application_id (application_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借款合同表';

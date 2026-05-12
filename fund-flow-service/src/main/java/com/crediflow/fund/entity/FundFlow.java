@@ -11,14 +11,15 @@ import java.util.Date;
 @Data
 @TableName("cf_fund_flow")
 public class FundFlow {
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
+    private String flowNo;
+    private Long applicationId;
     private Long userId;
-    private String tradeNo; // 第三方流水号
-    private String type; // DISBURSE (放款), REPAY (还款)
     private BigDecimal amount;
-    private String status; // SUCCESS, FAILED
-    private Date tradeTime;
+    private String type;
+    private String status;
+    private String thirdPartyTradeNo;
     private Date createdAt;
     private Date updatedAt;
 }

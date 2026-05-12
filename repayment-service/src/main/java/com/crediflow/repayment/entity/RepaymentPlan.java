@@ -11,17 +11,18 @@ import java.util.Date;
 @Data
 @TableName("cf_repayment_plan")
 public class RepaymentPlan {
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
-    private Long contractId;
+    private Long applicationId;
     private Long userId;
-    private Integer period;
-    private BigDecimal principal;
-    private BigDecimal interest;
-    private BigDecimal penalty;
-    private String status; // PENDING, PAID, OVERDUE
+    private Integer termIndex;
+    private Integer totalTerms;
+    private BigDecimal principalAmount;
+    private BigDecimal interestAmount;
+    private BigDecimal penaltyAmount;
+    private BigDecimal totalAmount;
     private Date dueDate;
-    private Date paidTime;
+    private String status;
     private Date createdAt;
     private Date updatedAt;
 }

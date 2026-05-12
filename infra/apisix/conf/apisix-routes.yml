@@ -1,0 +1,33 @@
+routes:
+  - id: 1
+    uri: /api/app/*
+    upstream:
+      type: roundrobin
+      nodes:
+        "user-service:8080": 1
+    plugins:
+      jwt-auth:
+        _meta:
+          disable: false
+      proxy-rewrite:
+        headers:
+          X-User-Id: "$jwt_payload_userId"
+  - id: 2
+    uri: /api/admin/*
+    upstream:
+      type: roundrobin
+      nodes:
+        "system-admin-service:8080": 1
+    plugins:
+      jwt-auth:
+        _meta:
+          disable: false
+      proxy-rewrite:
+        headers:
+          X-User-Id: "$jwt_payload_userId"
+          X-User-Role: "$jwt_payload_role"
+# Global rules
+global_rules:
+  - id: 1
+    plugins:
+      prometheus: {}
