@@ -18,6 +18,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class RepaymentServiceImpl extends ServiceImpl<RepaymentPlanMapper, RepaymentPlan> implements RepaymentService {
 
@@ -88,7 +91,7 @@ public class RepaymentServiceImpl extends ServiceImpl<RepaymentPlanMapper, Repay
         this.updateById(plan);
         
         // 此处应发送 MQ 消息通知 fund-flow-service 记账
-        System.out.println("MQ_SEND: Repayment success for plan " + planId + ", amount: " + plan.getPrincipal().add(plan.getInterest()));
+        log.info("MQ_SEND: Repayment success for plan {}, amount: {}", planId, plan.getPrincipal().add(plan.getInterest()));
 
         return plan;
     }

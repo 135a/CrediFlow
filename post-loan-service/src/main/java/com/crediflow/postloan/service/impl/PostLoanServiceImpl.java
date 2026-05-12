@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class PostLoanServiceImpl extends ServiceImpl<CollectionTaskMapper, CollectionTask> implements PostLoanService {
 
@@ -24,7 +27,7 @@ public class PostLoanServiceImpl extends ServiceImpl<CollectionTaskMapper, Colle
                 .multiply(penaltyRate)
                 .setScale(2, RoundingMode.HALF_UP);
         
-        System.out.println("OVERDUE_PROCESS: Plan " + planId + " overdue for " + overdueDays + " days. Calculated penalty: " + penalty);
+        log.info("OVERDUE_PROCESS: Plan {} overdue for {} days. Calculated penalty: {}", planId, overdueDays, penalty);
         // 此处应调用 repayment-service 更新对应 plan 的罚息和状态
 
         // 2. 生成催收任务 (如果逾期超过 3 天)
@@ -38,7 +41,7 @@ public class PostLoanServiceImpl extends ServiceImpl<CollectionTaskMapper, Colle
             task.setCreatedAt(new Date());
             task.setUpdatedAt(new Date());
             this.save(task);
-            System.out.println("COLLECTION_TASK: Created " + task.getMethod() + " collection task for user " + userId);
+            log.info("COLLECTION_TASK: Created {} collection task for user {}", task.getMethod(), userId);
         }
     }
 }
