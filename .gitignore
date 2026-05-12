@@ -1,0 +1,12 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.env
+*.log
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+*.egg-info/
+scheduler-go/bin/

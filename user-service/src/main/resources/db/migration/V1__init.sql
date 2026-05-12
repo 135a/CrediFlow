@@ -1,0 +1,108 @@
+-- 1. 用户表 (User)
+CREATE TABLE cf_user (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    phone VARCHAR(255) NOT NULL UNIQUE COMMENT '手机号(加密)',
+    password VARCHAR(255) NOT NULL COMMENT '密码(BCrypt)',
+    id_card VARCHAR(255) COMMENT '身份证号(加密)',
+    real_name VARCHAR(100) COMMENT '真实姓名',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态(1:正常, 0:禁用)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 2. 授信结果表 (Credit Risk)
+CREATE TABLE cf_credit_result (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    credit_amount DECIMAL(15,2) NOT NULL COMMENT '授信额度',
+    used_amount DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT '已用额度',
+    status VARCHAR(50) NOT NULL COMMENT '状态(ACTIVE, FROZEN)',
+    expire_time TIMESTAMP NOT NULL COMMENT '过期时间',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='授信结果表';
+
+-- 3. 借款申请表 (Loan Application)
+CREATE TABLE cf_loan_application (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    application_no VARCHAR(64) NOT NULL UNIQUE COMMENT '申请编号',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    apply_amount DECIMAL(15,2) NOT NULL COMMENT '申请金额',
+    term INT NOT NULL COMMENT '期数',
+    status VARCHAR(50) NOT NULL COMMENT '状态(PENDING, APPROVED, REJECTED)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借款申请表';
+
+-- 4. 借款合同/借据表 (Loan Contract)
+CREATE TABLE cf_loan_contract (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    contract_no VARCHAR(64) NOT NULL UNIQUE COMMENT '合同编号',
+    application_id BIGINT NOT NULL COMMENT '申请单ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    loan_amount DECIMAL(15,2) NOT NULL COMMENT '借款金额',
+    interest_rate DECIMAL(10,6) NOT NULL COMMENT '年化利率',
+    term INT NOT NULL COMMENT '期数',
+    status VARCHAR(50) NOT NULL COMMENT '状态(EFFECTIVE, CLEARED, OVERDUE)',
+    sign_time TIMESTAMP COMMENT '签署时间',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借款合同表';
+
+-- 5. 还款计划表 (Repayment Plan)
+CREATE TABLE cf_repayment_plan (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    contract_id BIGINT NOT NULL COMMENT '合同ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    period INT NOT NULL COMMENT '期数',
+    principal DECIMAL(15,2) NOT NULL COMMENT '应还本金',
+    interest DECIMAL(15,2) NOT NULL COMMENT '应还利息',
+    penalty DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT '应还罚息',
+    status VARCHAR(50) NOT NULL COMMENT '状态(PENDING, PAID, OVERDUE)',
+    due_date DATE NOT NULL COMMENT '应还日期',
+    paid_time TIMESTAMP COMMENT '实际还款时间',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_contract_id (contract_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='还款计划表';
+
+-- 6. 资金流水表 (Fund Flow)
+CREATE TABLE cf_fund_flow (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    flow_no VARCHAR(64) NOT NULL UNIQUE COMMENT '流水号',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    amount DECIMAL(15,2) NOT NULL COMMENT '交易金额',
+    flow_type VARCHAR(50) NOT NULL COMMENT '类型(DISBURSE:放款, REPAY:还款)',
+    status VARCHAR(50) NOT NULL COMMENT '状态(PROCESSING, SUCCESS, FAIL)',
+    biz_ref_no VARCHAR(64) NOT NULL COMMENT '业务关联号(合同号或计划号)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资金流水表';
+
+-- 7. 后台角色表 (System Role)
+CREATE TABLE cf_sys_role (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    role_code VARCHAR(50) NOT NULL UNIQUE COMMENT '角色编码',
+    role_name VARCHAR(100) NOT NULL COMMENT '角色名称',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台角色表';
+
+-- 8. 审计日志表 (Audit Log)
+CREATE TABLE cf_audit_log (
+    id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
+    operator_id BIGINT COMMENT '操作人ID',
+    operator_name VARCHAR(100) COMMENT '操作人姓名',
+    action VARCHAR(100) NOT NULL COMMENT '操作动作',
+    resource VARCHAR(255) NOT NULL COMMENT '操作资源',
+    detail TEXT COMMENT '操作详情',
+    ip_addr VARCHAR(50) COMMENT 'IP地址',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';
+
+-- 插入默认管理员角色
+INSERT INTO cf_sys_role (id, role_code, role_name) VALUES (1, 'ADMIN', '超级管理员');

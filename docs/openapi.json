@@ -1,0 +1,270 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CrediFlow API Specifications",
+    "description": "API documentation for the CrediFlow Micro-Credit System, covering User, Credit, Loan, Contract, Repayment, Post-Loan, Fund Flow, and AI Agent services.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "CrediFlow Dev Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:9080",
+      "description": "APISIX API Gateway"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Data Agent (Python)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Result": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "Success" },
+          "data": { "type": "object" },
+          "traceId": { "type": "string", "example": "trc-abc-123" }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/app/user/register": {
+      "post": {
+        "tags": ["User Service"],
+        "summary": "Register a new user",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": { "type": "string", "example": "13800138000" },
+                  "password": { "type": "string", "example": "encrypted_password_hash" },
+                  "idCard": { "type": "string", "example": "110105199001011234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Successfully registered", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/user/login": {
+      "post": {
+        "tags": ["User Service"],
+        "summary": "User login to get JWT",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": { "type": "string", "example": "13800138000" },
+                  "password": { "type": "string", "example": "encrypted_password_hash" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful, returns JWT token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/credit/apply": {
+      "post": {
+        "tags": ["Credit Risk Service"],
+        "summary": "Apply for credit limit",
+        "parameters": [
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Credit result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/loan/apply": {
+      "post": {
+        "tags": ["Loan Application Service"],
+        "summary": "Submit a loan application",
+        "parameters": [
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": { "type": "number", "example": 5000.00 },
+                  "term": { "type": "integer", "example": 12 },
+                  "idmpToken": { "type": "string", "example": "uuid-token" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Loan application submitted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/contract/sign": {
+      "post": {
+        "tags": ["Loan Contract Service"],
+        "summary": "Sign the loan agreement",
+        "parameters": [
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "applicationId": { "type": "integer", "example": 1001 },
+                  "agreed": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Contract generated and signed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/repayment/generate": {
+      "post": {
+        "tags": ["Repayment Service"],
+        "summary": "Generate repayment plans",
+        "parameters": [
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contractId": { "type": "integer" },
+                  "loanAmount": { "type": "number" },
+                  "interestRate": { "type": "number" },
+                  "term": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Plans generated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/app/repayment/active-repay": {
+      "post": {
+        "tags": ["Repayment Service"],
+        "summary": "Active repayment by user",
+        "parameters": [
+          { "name": "X-User-Id", "in": "header", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "planId": { "type": "integer" },
+                  "idmpToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Repayment success", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Result" } } } }
+        }
+      }
+    },
+    "/api/callback/payment": {
+      "post": {
+        "tags": ["Fund Flow Service"],
+        "summary": "Third-party payment callback",
+        "security": [],
+        "responses": {
+          "200": { "description": "Callback handled" }
+        }
+      }
+    },
+    "/api/v1/agent/rag": {
+      "post": {
+        "tags": ["Data Agent (Python)"],
+        "summary": "Ask the AI Agent using RAG",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": { "type": "string", "example": "What is the max loan amount?" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Agent response with source IDs" }
+        }
+      }
+    },
+    "/api/v1/agent/nl2sql": {
+      "post": {
+        "tags": ["Data Agent (Python)"],
+        "summary": "Execute generated SQL via NL2SQL",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sql": { "type": "string", "example": "SELECT * FROM cf_user LIMIT 10" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "SQL Result rows" }
+        }
+      }
+    }
+  }
+}

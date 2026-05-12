@@ -1,0 +1,198 @@
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+
+volumes:
+  mysql-data: {}
+  apisix-logs: {}
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: crediflow
+      MYSQL_USER: crediflow
+      MYSQL_PASSWORD: crediflow
+      MYSQL_ROOT_PASSWORD: rootpass
+    networks: [internal]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ucrediflow", "-pcrediflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: ""
+      NACOS_AUTH_ENABLE: "false"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8848/nacos/"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+
+  rmqnamesrv:
+    image: apache/rocketmq:5.2.0
+    networks: [internal]
+    command: sh mqnamesrv
+
+  rmqbroker:
+    image: apache/rocketmq:5.2.0
+    networks: [internal]
+    depends_on:
+      - rmqnamesrv
+    environment:
+      NAMESRV_ADDR: rmqnamesrv:9876
+    command: sh mqbroker -n rmqnamesrv:9876 autoCreateTopicEnable=true
+
+  milvus:
+    image: milvusdb/milvus:v2.3.10
+    networks: [internal]
+    command: ["milvus", "run", "standalone"]
+
+  etcd-apisix:
+    image: bitnami/etcd:3.5.12
+    networks: [internal, edge]
+    environment:
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-apisix:2379
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+
+  apisix:
+    image: apache/apisix:3.9.0-debian
+    depends_on:
+      - etcd-apisix
+    networks: [edge, internal]
+    ports:
+      - "9080:9080"
+      - "9180:9180"
+    volumes:
+      - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - apisix-logs:/usr/local/apisix/logs
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: user-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  credit-risk-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: credit-risk-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  loan-application-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: loan-application-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  loan-contract-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: loan-contract-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  repayment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: repayment-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  post-loan-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: post-loan-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  fund-flow-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args:
+        MODULE_NAME: fund-flow-service
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  batch-service:
+    build:
+      context: ./batch-service
+      dockerfile: Dockerfile
+    networks: [internal]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  data-agent:
+    build:
+      context: ./data-agent
+      dockerfile: Dockerfile
+    networks: [internal]
+    env_file:
+      - .env
+    depends_on:
+      milvus:
+        condition: service_started
