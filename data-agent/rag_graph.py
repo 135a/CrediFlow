@@ -14,10 +14,8 @@ def retrieve_node(state: AgentState):
     milvus = MilvusManager()
     collection = milvus.create_collection_if_not_exists()
     
-    # 生产环境中：需要调用 Embedding 模型将 question 转为向量
-    # 这里用随机向量模拟：import numpy as np; embed = np.random.rand(768).tolist()
-    # 假设我们拿到了 embedding
-    embed = [0.0] * 768 
+    from embedding_adapters import get_active_embedding
+    embed = get_active_embedding().embed_text(state["question"])
     
     collection.load()
     search_params = {"metric_type": "L2", "params": {"nprobe": 10}}

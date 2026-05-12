@@ -28,9 +28,8 @@ class IngestRequest(BaseModel):
 
 @app.post("/api/v1/knowledge/ingest")
 async def ingest_knowledge(req: IngestRequest):
-    # 模拟 Embedding 模型切分与向量化
-    # 实际应调用 text-embedding-v1 等服务
-    embed = [0.0] * 768
+    from embedding_adapters import get_active_embedding
+    embed = get_active_embedding().embed_text(req.content)
     
     from milvus_manager import MilvusManager
     milvus = MilvusManager()
