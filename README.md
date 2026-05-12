@@ -194,8 +194,8 @@ CrediFlow/
 | **Embedding** | Qwen / Zhipu / Ernie / OpenAI | 可插拔多供应商向量模型 |
 | **向量数据库** | Milvus 2.3 | RAG 知识库语义检索 |
 | **关系数据库** | MySQL 8.0 | 核心业务数据 (单库) |
-| **缓存** | Redis 7 | 热点缓存 + 分布式锁 |
-| **可观测性** | Prometheus + Grafana + JSON 结构化日志 | 监控、告警、链路追踪 |
+| **缓存与分布式锁** | Redis 7 + Redisson | 热点缓存、API 防重放、并发锁 |
+| **可观测性** | Prometheus + Grafana + Actuator | 全局微服务监控、JVM 性能大盘与报警 |
 | **部署** | Docker Compose | 一键编排 |
 
 ## 🌟 核心特性
@@ -230,12 +230,17 @@ LLM 与 Embedding 均支持通过环境变量热切换，无需修改代码：
 | 大语言模型 | 通义千问 · 智谱清言 · 文心一言 | `ACTIVE_PROVIDER` |
 | 向量模型 | 通义 · 智谱 · 文心 · OpenAI | `ACTIVE_EMBEDDING_PROVIDER` |
 
-### 🛡️ 金融级安全设计
+### 🛡️ 大厂级高可用与强一致性 (Enterprise-grade Reliability)
 
-- **幂等保障**：Redis 分布式锁 + 幂等 Token，防止重复放款/重复还款
-- **数据脱敏**：身份证、手机号加密存储，NL2SQL 查询结果自动 PII 掩码
-- **操作审计**：全链路操作日志留存，满足金融监管可追溯要求
-- **Agent 零信任**：SQL 静态分析拦截写操作、API 白名单准入、表级白名单过滤
+- **全局分布式防重放**：基于 Redisson 分布式锁 + 动态 `idmpToken` (AOP 切面)，彻底阻断前端高频连点与并发脚本恶意重放，保障核心接口（放款、还款）绝对幂等。
+- **本地消息表 (Local Message Table) 最终一致性**：为彻底解决业务落库与 RocketMQ 事件投递的分布式事务难题，将业务状态变更与消息投递凭证合并入同一数据库事务，通过 `@Scheduled` 轮询补偿，保证金融核心消息 100% 不丢失 (At-Least-Once)。
+- **MQ 消费端数据库级防重**：消费者端引入 `cf_mq_idempotent_log` 防重日志表，结合 MySQL 唯一索引 (Unique Key) 冲突机制，完美化解 RocketMQ 网络抖动带来的重复投递引发的重复扣款风险。
+
+### 🔒 零信任内网安全架构 (Zero-Trust Security)
+
+- **微服务内部 HMAC-SHA256 鉴权**：废弃传统的内网“裸奔”模式。所有微服务间的 Feign 调用 MUST 经过 `InternalAuthRequestInterceptor` 自动注入由预共享密钥 + 时间戳生成的签名。接收端 Filter 强制验签并防止过期重放，彻底杜绝绕过 APISIX 网关的越权非法直接调用。
+- **数据脱敏**：身份证、手机号加密存储，NL2SQL 查询结果自动 PII 掩码。
+- **操作审计**：全链路操作日志留存，满足金融监管可追溯要求。
 
 ### ⏱️ Go 高并发任务调度
 
