@@ -162,6 +162,8 @@ services:
         condition: service_healthy
       nacos:
         condition: service_healthy
+      fund-channel-gateway:
+        condition: service_started
 
   admin-bff-service:
     build:
@@ -199,6 +201,20 @@ services:
       - .env
     depends_on:
       redis:
+        condition: service_healthy
+
+  fund-channel-gateway:
+    build:
+      context: ./go/fund-channel-gateway
+    networks: [internal]
+    env_file:
+      - .env
+    environment:
+      FUND_GATEWAY_CONFIG_PATH: /app/configs/fund-provider.dev.yaml
+    depends_on:
+      redis:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
 
   data-agent:

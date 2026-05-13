@@ -28,5 +28,14 @@ rocketmq:
   producer:
     group: fund-flow-service-producer
 
+crediflow:
+  fund:
+    # 是否由 Java 调用 Go fund-channel-gateway 受理放款（灰度开关，默认 false 保持旧 Mock 路径）
+    use-gateway: ${FUND_USE_GATEWAY:false}
+    # 启用网关且受理为 ACCEPTED 时，是否仍由本服务立即发送旧的 FUND_DISBURSED 生命周期消息（默认 true，待任务 6.3 消费网关 MQ 后可置 false）
+    emit-legacy-fund-disbursed-after-gateway: ${FUND_EMIT_LEGACY_DISBURSED:true}
 
-
+fund:
+  channel:
+    gateway:
+      url: ${FUND_CHANNEL_GATEWAY_URL:http://fund-channel-gateway:8090}

@@ -26,17 +26,19 @@ public class ContractReadyConsumer implements RocketMQListener<LoanLifecycleMess
         log.info("Received CONTRACT_READY_EVENT: {}", message);
         
         try {
-            // 放款操作
-            fundFlowService.processDisbursement(message.getLoanApplicationId(), message.getUserId());
-            
-            // 抛出放款成功事件
-            LoanLifecycleMessage nextMsg = new LoanLifecycleMessage();
-            nextMsg.setLoanApplicationId(message.getLoanApplicationId());
-            nextMsg.setUserId(message.getUserId());
-            nextMsg.setEventType(MqConstants.TAG_FUND_DISBURSED);
-            
-            rocketMQTemplate.convertAndSend(MqConstants.TOPIC_LOAN_LIFECYCLE + ":" + MqConstants.TAG_FUND_DISBURSED, nextMsg);
-            log.info("Disbursement successful and FUND_DISBURSED_EVENT sent for LoanApplicationId: {}", message.getLoanApplicationId());
+            boolean emitFundDisbursed = fundFlowService.processDisbursement(message);
+
+            if (emitFundDisbursed) {
+                LoanLifecycleMessage nextMsg = new LoanLifecycleMessage();
+                nextMsg.setLoanApplicationId(message.getLoanApplicationId());
+                nextMsg.setUserId(message.getUserId());
+                nextMsg.setEventType(MqConstants.TAG_FUND_DISBURSED);
+
+                rocketMQTemplate.convertAndSend(MqConstants.TOPIC_LOAN_LIFECYCLE + ":" + MqConstants.TAG_FUND_DISBURSED, nextMsg);
+                log.info("Disbursement successful and FUND_DISBURSED_EVENT sent for LoanApplicationId: {}", message.getLoanApplicationId());
+            } else {
+                log.info("Skipping immediate FUND_DISBURSED_EVENT for LoanApplicationId: {} (gateway path or compatibility flag)", message.getLoanApplicationId());
+            }
         } catch (Exception e) {
             log.error("Failed to process CONTRACT_READY_EVENT", e);
             throw e;

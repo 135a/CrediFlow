@@ -32,3 +32,15 @@ rocketmq:
   producer:
     group: repayment-service-producer
 
+crediflow:
+  repayment:
+    # 主动还款是否经 Go fund-channel-gateway 受理（默认 true，禁止 Java 直连资金方）。
+    use-gateway: ${REPAYMENT_USE_GATEWAY:true}
+    # 业务侧默认资金方 ID；留空 => 由网关回落到 Nacos defaultProviderId（混合路由）。
+    default-provider-id: ${REPAYMENT_DEFAULT_PROVIDER_ID:}
+
+fund:
+  channel:
+    gateway:
+      url: ${FUND_CHANNEL_GATEWAY_URL:http://fund-channel-gateway:8090}
+

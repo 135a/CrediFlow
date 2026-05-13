@@ -9,3 +9,12 @@ services:
     networks: [internal]
     env_file:
       - .env
+
+  fund-channel-gateway:
+    build:
+      context: ./go/fund-channel-gateway
+    networks: [internal]
+    env_file:
+      - .env
+    environment:
+      FUND_GATEWAY_CONFIG_PATH: /app/configs/fund-provider.dev.yaml

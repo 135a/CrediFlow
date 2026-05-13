@@ -3,4 +3,7 @@ schema: spec-driven
 context: |
   Output Language: 简体中文 (Simplified Chinese).
   所有的 OpenSpec 输出文档（包括 proposal、specs、design 和 tasks 等）均必须使用简体中文生成。
+  代码中的相关注释也必须用中文生成，并在关键代码处,写明这样做的原因与背景
+  在编码阶段，告诉我没一次修改的目的与影响是什么
+  
   

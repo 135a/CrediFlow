@@ -20,6 +20,14 @@ public class FundFlow {
     private String type;
     private String status;
     private String thirdPartyTradeNo;
+    /** 资金方标识（混合路由时由业务或网关解析） */
+    private String providerId;
+    /** Go 资金网关受理号 */
+    private String gatewayRequestId;
+    /** 资金方侧流水号（终态回调后回填） */
+    private String providerTxnNo;
+    /** 桥接事件或回调报文摘要 */
+    private String payloadDigest;
     private Date createdAt;
     private Date updatedAt;
 }

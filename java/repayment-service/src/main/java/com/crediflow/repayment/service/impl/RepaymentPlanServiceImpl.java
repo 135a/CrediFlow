@@ -46,19 +46,15 @@ public class RepaymentPlanServiceImpl extends ServiceImpl<RepaymentPlanMapper, R
         }
     }
 
+    /**
+     * 旧的 Mock「第三方收银网关」直连路径，按 fund-provider-go-gateway 任务 8.2 已禁用：
+     * 所有真实资金外呼必须经由 Go {@code fund-channel-gateway}。保留方法签名仅为
+     * 兼容尚未迁移的内部调用，调用时立即抛出禁用异常，提示改用 {@code RepaymentService.activeRepay}。
+     */
     @Override
+    @Deprecated
     public void processRepayment(Long planId, Long userId) {
-        RepaymentPlan plan = this.getById(planId);
-        if (plan == null || !plan.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "还款计划不存在或无权限");
-        }
-        if (!"PENDING".equals(plan.getStatus()) && !"OVERDUE".equals(plan.getStatus())) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "还款计划状态非法，无法还款");
-        }
-        
-        // Mock payment via gateway
-        plan.setStatus("PAID");
-        plan.setUpdatedAt(new Date());
-        this.updateById(plan);
+        throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                "Legacy mock repayment path is disabled; call RepaymentService#activeRepay via fund-channel-gateway");
     }
 }

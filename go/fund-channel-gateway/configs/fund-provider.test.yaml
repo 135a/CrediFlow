@@ -1,0 +1,45 @@
+# fund-channel-gateway · test profile
+# 用于 CI / 测试环境，启用 mock 但与 RocketMQ 联调（如已部署 nameserver）。
+
+env: test
+
+http:
+  addr: ":8090"
+  readTimeoutMs: 10000
+  writeTimeoutMs: 10000
+  exposeMockTrigger: false
+
+internalSign:
+  headerName: "X-Internal-Sign"
+  timestampSkewSeconds: 300
+  sharedSecret: "default-secret-key-123"
+  disabled: false
+
+defaultProviderId: mockProviderA
+
+providers:
+  mockProviderA:
+    enabled: true
+    displayName: "Mock Provider A (test)"
+    baseUrl: ""
+    appKey: "test-mock-app-key"
+    signAlgorithm: "HMAC_SHA256"
+    useMock: true
+    mockAsyncDelayMs: 1000
+    callbackPaths:
+      - "/fund/callback/mockProviderA"
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 1
+  idempotencyTtlSeconds: 86400
+
+rocketmq:
+  nameServer: "rmqnamesrv:9876"
+  groupId: "fund-channel-gateway"
+  disburseTopic: "FUND_DISBURSED_EVENT"
+  repayTopic: "REPAYMENT_SETTLED_EVENT"
+
+audit:
+  logPayloadDigest: true

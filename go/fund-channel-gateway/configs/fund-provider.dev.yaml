@@ -1,0 +1,51 @@
+# fund-channel-gateway · dev profile
+# 仅用于本地 / 开发联调，不要把生产密钥写入仓库。
+# 正式环境密钥与 baseUrl 由运维通过 Nacos 注入，参考 docs/nacos-config.md。
+
+env: dev
+
+http:
+  addr: ":8090"
+  readTimeoutMs: 10000
+  writeTimeoutMs: 10000
+  exposeMockTrigger: true
+
+internalSign:
+  headerName: "X-Internal-Sign"
+  timestampSkewSeconds: 300
+  sharedSecret: "default-secret-key-123"
+  disabled: false
+
+defaultProviderId: mockProviderA
+
+providers:
+  mockProviderA:
+    enabled: true
+    displayName: "Mock Provider A (dev)"
+    baseUrl: ""
+    appKey: "dev-mock-app-key"
+    appSecret: ""
+    signAlgorithm: "HMAC_SHA256"
+    encryptFields: []
+    httpTimeoutMs: 5000
+    maxRetries: 2
+    retryBackoffMs: 500
+    useMock: true
+    mockAsyncDelayMs: 2000
+    callbackPaths:
+      - "/fund/callback/mockProviderA"
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 0
+  idempotencyTtlSeconds: 86400
+
+rocketmq:
+  nameServer: ""                # leave blank to fall back to logger-only publisher
+  groupId: "fund-channel-gateway"
+  disburseTopic: "FUND_DISBURSED_EVENT"
+  repayTopic: "REPAYMENT_SETTLED_EVENT"
+
+audit:
+  logPayloadDigest: true
