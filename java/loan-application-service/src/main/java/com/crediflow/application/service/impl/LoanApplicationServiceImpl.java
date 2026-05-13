@@ -30,20 +30,20 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     @Override
     @com.crediflow.common.annotation.Idempotent(key = "'LOAN_APP:' + #idmpToken")
     public LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idmpToken) {
-        // 0. KYC 校验
-        Result<Map<String, Object>> kycResult = userClient.getKycStatus(userId);
-        if (kycResult == null || kycResult.getData() == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
+        // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
+        Result<Map<String, Object>> eligibility = userClient.getEligibility(userId);
+        if (eligibility == null || eligibility.getData() == null) {
+            throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED, "请先完成 KYC 实名实人核验");
         }
-        Map<String, Object> kycData = kycResult.getData();
-        Integer stepStatus = (Integer) kycData.get("stepStatus");
-        if (stepStatus == null || stepStatus < 3) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
+        boolean kycPassed = Boolean.TRUE.equals(eligibility.getData().get("kycPassed"));
+        boolean hasPrimary = Boolean.TRUE.equals(eligibility.getData().get("hasPrimaryBankCard"));
+        if (!kycPassed) {
+            throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED,
+                    ErrorCode.KYC_FACE_NOT_VERIFIED.getMessage());
         }
-        // 实名二要素（openspec: realname-thirdparty-http-backend / tasks 7.2）
-        Object realnameStatus = kycData.get("realnameStatus");
-        if (!"VERIFIED".equals(realnameStatus != null ? realnameStatus.toString() : null)) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未完成实名核验");
+        if (!hasPrimary) {
+            throw new BusinessException(ErrorCode.KYC_BANKCARD_REQUIRED,
+                    ErrorCode.KYC_BANKCARD_REQUIRED.getMessage());
         }
 
         // 2. 联合校验：检查有效授信额度

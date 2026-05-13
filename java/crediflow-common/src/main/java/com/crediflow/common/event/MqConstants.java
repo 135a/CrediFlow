@@ -14,4 +14,8 @@ public interface MqConstants {
     // {@link FundDisbursedTerminalEvent} / {@link RepaymentSettledEvent} 一致。
     String TOPIC_FUND_DISBURSED_TERMINAL = "FUND_DISBURSED_EVENT";
     String TOPIC_REPAYMENT_SETTLED = "REPAYMENT_SETTLED_EVENT";
+
+    /** user-service：KYC v2（实名+实人）通过后投递。 */
+    String TOPIC_KYC_PASSED = "KYC_PASSED_TOPIC";
+    String TAG_KYC_PASSED = "KYC_PASSED_EVENT";
 }

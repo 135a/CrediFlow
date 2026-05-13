@@ -11,6 +11,7 @@ import com.crediflow.user.realname.RealnameStatus;
 import com.crediflow.user.realname.service.RealnameVerificationService;
 import com.crediflow.user.service.UserKycService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -26,8 +27,23 @@ public class UserKycController {
     @Autowired
     private RealnameVerificationService realnameVerificationService;
 
+    /**
+     * KYC v2 接管开关；默认 true，对旧 step1/2/3 直接返回 410 语义，
+     * 应急回滚时可在 Nacos 切回 false 恢复旧链路。
+     */
+    @Value("${crediflow.kyc.use-v2:true}")
+    private boolean useV2;
+
+    private void rejectIfV2Active() {
+        if (useV2) {
+            throw new BusinessException(ErrorCode.KYC_LEGACY_API_GONE,
+                    ErrorCode.KYC_LEGACY_API_GONE.getMessage());
+        }
+    }
+
     @PostMapping("/step1")
     public Result<Void> step1(@RequestParam Long userId, @RequestBody UserKyc kycData) {
+        rejectIfV2Active();
         UserKyc kyc = userKycService.getByUserId(userId);
         if (kyc == null) {
             kyc = new UserKyc();
@@ -54,6 +70,7 @@ public class UserKycController {
             @RequestParam Long userId,
             @RequestBody UserKycStep2Request request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        rejectIfV2Active();
         UserKycStep2Response resp =
                 realnameVerificationService.submitStep2(userId, request.getRealName(), request.getIdCardNo(), idempotencyKey);
         return Result.success(resp.toMap());
@@ -61,6 +78,7 @@ public class UserKycController {
 
     @PostMapping("/step3")
     public Result<Void> step3(@RequestParam Long userId, @RequestBody UserKyc kycData) {
+        rejectIfV2Active();
         UserKyc kyc = userKycService.getByUserId(userId);
         if (kyc == null || kyc.getStepStatus() == null || kyc.getStepStatus() < 2) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "请先完成步骤二");

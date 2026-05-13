@@ -32,21 +32,28 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
 
     @Override
     public com.crediflow.credit.entity.CreditApplication applyCredit(Long userId) {
-        // 0. KYC 校验
+        // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
+        Result<Map<String, Object>> eligibility = userClient.getEligibility(userId);
+        if (eligibility == null || eligibility.getData() == null) {
+            throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED, "请先完成 KYC 实名实人核验");
+        }
+        Object kycPassedObj = eligibility.getData().get("kycPassed");
+        Object hasPrimaryObj = eligibility.getData().get("hasPrimaryBankCard");
+        boolean kycPassed = Boolean.TRUE.equals(kycPassedObj);
+        boolean hasPrimary = Boolean.TRUE.equals(hasPrimaryObj);
+        if (!kycPassed) {
+            throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED,
+                    ErrorCode.KYC_FACE_NOT_VERIFIED.getMessage());
+        }
+        if (!hasPrimary) {
+            throw new BusinessException(ErrorCode.KYC_BANKCARD_REQUIRED,
+                    ErrorCode.KYC_BANKCARD_REQUIRED.getMessage());
+        }
+
+        // KYC 通过后再读旧 status 接口拿画像字段（仅用于风控建模上下文，不再作为门禁）
         Result<Map<String, Object>> kycResult = userClient.getKycStatus(userId);
-        if (kycResult == null || kycResult.getData() == null) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
-        }
-        Map<String, Object> kycData = kycResult.getData();
-        Integer stepStatus = (Integer) kycData.get("stepStatus");
-        if (stepStatus == null || stepStatus < 3) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未通过kyc认证");
-        }
-        // 实名二要素（openspec: realname-thirdparty-http-backend / tasks 7.2）
-        Object realnameStatus = kycData.get("realnameStatus");
-        if (!"VERIFIED".equals(realnameStatus != null ? realnameStatus.toString() : null)) {
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "尚未完成实名核验");
-        }
+        Map<String, Object> kycData = kycResult == null || kycResult.getData() == null
+                ? Map.of() : kycResult.getData();
 
         // 1. 检查是否已有活跃授信
         CreditResult existing = getActiveCredit(userId);

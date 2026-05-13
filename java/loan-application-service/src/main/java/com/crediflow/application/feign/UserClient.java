@@ -14,4 +14,8 @@ public interface UserClient {
 
     @GetMapping("/api/internal/user/by-phone")
     Result<Long> getUserIdByPhone(@RequestParam("phone") String phone);
+
+    /** KYC v2 + 主卡前置查询。 */
+    @GetMapping("/api/internal/user/eligibility")
+    Result<Map<String, Object>> getEligibility(@RequestParam("userId") Long userId);
 }

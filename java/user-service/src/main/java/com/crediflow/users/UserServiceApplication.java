@@ -10,7 +10,13 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication(scanBasePackages = "com.crediflow", exclude = { SecurityAutoConfiguration.class })
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = "com.crediflow")
-@MapperScan("com.crediflow.user.mapper")
+@MapperScan(basePackages = {
+        "com.crediflow.user.mapper",
+        "com.crediflow.user.kyc.mapper",
+        "com.crediflow.user.bankcard.mapper",
+        "com.crediflow.user.eligibility.mapper",
+        "com.crediflow.user.face.mapper"
+})
 public class UserServiceApplication {
 
     public static void main(String[] args) {

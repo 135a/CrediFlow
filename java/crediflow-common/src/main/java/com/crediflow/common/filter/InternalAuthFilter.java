@@ -11,7 +11,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @Order(1)
@@ -20,15 +23,40 @@ public class InternalAuthFilter implements Filter {
     @Value("${crediflow.internal.secret:default-secret-key-123}")
     private String secretKey;
 
+    /**
+     * 不走平台 {@code X-Internal-Sign} 校验的 {@code /api/internal/**} 路径白名单（如人脸厂商异步回调），
+     * 由调用方自身的签名层（Provider.verifySignature）+ 边缘 IP 白名单完成防护。
+     */
+    @Value("${crediflow.internal.public-paths:/api/internal/face-verify/callback}")
+    private String publicPathsCsv;
+
+    private List<String> publicPaths() {
+        if (publicPathsCsv == null || publicPathsCsv.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(publicPathsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toList());
+    }
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-            
+
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String path = httpRequest.getRequestURI();
-        
+
+        // 白名单路径（厂商异步回调等）由各自的签名层 + 边缘防护处理，不再要求 X-Internal-Sign
+        for (String publicPath : publicPaths()) {
+            if (path.equals(publicPath) || path.startsWith(publicPath + "/")) {
+                chain.doFilter(request, response);
+                return;
+            }
+        }
+
         // 仅拦截 /api/internal/** 路径
         if (path.startsWith("/api/internal/")) {
             String timestamp = httpRequest.getHeader("X-Timestamp");
