@@ -17,9 +17,9 @@ public class LoanApplicationController {
 
     @PostMapping("/apply")
     public Result<LoanApplication> applyLoan(@RequestHeader("X-User-Id") Long userId,
-                                             @RequestParam BigDecimal applyAmount,
-                                             @RequestParam Integer term,
-                                             @RequestParam String idmpToken) {
+                                             @RequestParam("applyAmount") BigDecimal applyAmount,
+                                             @RequestParam("term") Integer term,
+                                             @RequestParam("idmpToken") String idmpToken) {
         return Result.success(loanApplicationService.applyLoan(userId, applyAmount, term, idmpToken));
     }
 }

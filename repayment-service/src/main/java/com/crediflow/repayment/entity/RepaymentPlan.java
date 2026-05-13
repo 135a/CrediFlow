@@ -13,15 +13,17 @@ import java.util.Date;
 public class RepaymentPlan {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Long contractId;
     private Long applicationId;
     private Long userId;
-    private Integer termIndex;
+    private Integer period;
     private Integer totalTerms;
-    private BigDecimal principalAmount;
-    private BigDecimal interestAmount;
-    private BigDecimal penaltyAmount;
+    private BigDecimal principal;
+    private BigDecimal interest;
+    private BigDecimal penalty;
     private BigDecimal totalAmount;
     private Date dueDate;
+    private Date paidTime;
     private String status;
     private Date createdAt;
     private Date updatedAt;

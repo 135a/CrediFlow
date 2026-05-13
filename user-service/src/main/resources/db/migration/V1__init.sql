@@ -1,5 +1,5 @@
 -- 1. 用户表 (User)
-CREATE TABLE cf_user (
+CREATE TABLE IF NOT EXISTS cf_user (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     phone VARCHAR(255) NOT NULL UNIQUE COMMENT '手机号(加密)',
     password VARCHAR(255) NOT NULL COMMENT '密码(BCrypt)',
@@ -11,7 +11,7 @@ CREATE TABLE cf_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- 2. 授信结果表 (Credit Risk)
-CREATE TABLE cf_credit_result (
+CREATE TABLE IF NOT EXISTS cf_credit_result (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     credit_amount DECIMAL(15,2) NOT NULL COMMENT '授信额度',
@@ -24,7 +24,7 @@ CREATE TABLE cf_credit_result (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='授信结果表';
 
 -- 3. 借款申请表 (Loan Application)
-CREATE TABLE cf_loan_application (
+CREATE TABLE IF NOT EXISTS cf_loan_application (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     application_no VARCHAR(64) NOT NULL UNIQUE COMMENT '申请编号',
     user_id BIGINT NOT NULL COMMENT '用户ID',
@@ -37,7 +37,7 @@ CREATE TABLE cf_loan_application (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借款申请表';
 
 -- 4. 借款合同/借据表 (Loan Contract)
-CREATE TABLE cf_loan_contract (
+CREATE TABLE IF NOT EXISTS cf_loan_contract (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     contract_no VARCHAR(64) NOT NULL UNIQUE COMMENT '合同编号',
     application_id BIGINT NOT NULL COMMENT '申请单ID',
@@ -53,7 +53,7 @@ CREATE TABLE cf_loan_contract (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='借款合同表';
 
 -- 5. 还款计划表 (Repayment Plan)
-CREATE TABLE cf_repayment_plan (
+CREATE TABLE IF NOT EXISTS cf_repayment_plan (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     contract_id BIGINT NOT NULL COMMENT '合同ID',
     user_id BIGINT NOT NULL COMMENT '用户ID',
@@ -70,7 +70,7 @@ CREATE TABLE cf_repayment_plan (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='还款计划表';
 
 -- 6. 资金流水表 (Fund Flow)
-CREATE TABLE cf_fund_flow (
+CREATE TABLE IF NOT EXISTS cf_fund_flow (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     flow_no VARCHAR(64) NOT NULL UNIQUE COMMENT '流水号',
     user_id BIGINT NOT NULL COMMENT '用户ID',
@@ -84,7 +84,7 @@ CREATE TABLE cf_fund_flow (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资金流水表';
 
 -- 7. 后台角色表 (System Role)
-CREATE TABLE cf_sys_role (
+CREATE TABLE IF NOT EXISTS cf_sys_role (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     role_code VARCHAR(50) NOT NULL UNIQUE COMMENT '角色编码',
     role_name VARCHAR(100) NOT NULL COMMENT '角色名称',
@@ -93,7 +93,7 @@ CREATE TABLE cf_sys_role (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台角色表';
 
 -- 8. 审计日志表 (Audit Log)
-CREATE TABLE cf_audit_log (
+CREATE TABLE IF NOT EXISTS cf_audit_log (
     id BIGINT NOT NULL PRIMARY KEY COMMENT '主键',
     operator_id BIGINT COMMENT '操作人ID',
     operator_name VARCHAR(100) COMMENT '操作人姓名',

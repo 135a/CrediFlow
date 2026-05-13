@@ -24,4 +24,22 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         contract.setUpdatedAt(new Date());
         this.save(contract);
     }
+
+    @Override
+    public java.util.Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, java.math.BigDecimal amount, Integer term, boolean agreed) {
+        if (!agreed) {
+            throw new RuntimeException("必须同意协议才能签约");
+        }
+        generateContract(applicationId, userId);
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("status", "SUCCESS");
+        return map;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getContractLink(Long userId, Long applicationId) {
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("link", "https://oss.crediflow.com/contracts/dummy.pdf");
+        return map;
+    }
 }

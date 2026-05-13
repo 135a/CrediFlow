@@ -3,6 +3,19 @@ server:
 spring:
   application:
     name: loan-contract-service
+
+  flyway:
+    enabled: true
+    table: flyway_history_
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:crediflow}?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:crediflow}
+    password: ${MYSQL_PASSWORD:crediflow}
   cloud:
     nacos:
       discovery:
@@ -10,7 +23,14 @@ spring:
         namespace: ${NACOS_NAMESPACE:}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
 
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:rmqnamesrv:9876}
+  producer:
+    group: loan-contract-service-producer
+
 crediflow:
   contract:
-    # 默认日化贷款利率为万分之三，支持从环境变量或 Nacos 动态注入
     interest-rate: ${INTEREST_RATE:0.0003}
+
+
+

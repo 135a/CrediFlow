@@ -3,6 +3,15 @@ server:
 spring:
   application:
     name: post-loan-service
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:crediflow}?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:crediflow}
+    password: ${MYSQL_PASSWORD:crediflow}
   cloud:
     nacos:
       discovery:
@@ -12,5 +21,6 @@ spring:
 
 crediflow:
   post-loan:
-    # 默认逾期罚息日利率为万分之五，支持从环境变量或 Nacos 动态注入
     penalty-rate: ${PENALTY_RATE:0.0005}
+
+

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
+import com.crediflow.common.web.Result;
 import com.crediflow.credit.entity.CreditResult;
 import com.crediflow.credit.feign.AgentClient;
 import com.crediflow.credit.mapper.CreditResultMapper;

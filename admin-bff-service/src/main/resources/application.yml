@@ -3,6 +3,10 @@ server:
 spring:
   application:
     name: admin-bff-service
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
   cloud:
     nacos:
       discovery:

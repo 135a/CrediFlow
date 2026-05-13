@@ -3,14 +3,32 @@ server:
 spring:
   application:
     name: repayment-service
+
+  flyway:
+    enabled: true
+    table: flyway_history_
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:crediflow}?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:crediflow}
+    password: ${MYSQL_PASSWORD:crediflow}
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER:nacos:8848}
         namespace: ${NACOS_NAMESPACE:}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
+
+# Redisson config - no password (Redis in Docker has no auth)
+redisson:
+  single-server-config:
+    address: redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:rmqnamesrv:9876}
+  producer:
+    group: repayment-service-producer
+

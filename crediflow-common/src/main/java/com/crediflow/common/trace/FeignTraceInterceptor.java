@@ -2,9 +2,6 @@ package com.crediflow.common.trace;
 
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
-import org.springframework.stereotype.Component;
-
-@Component
 public class FeignTraceInterceptor implements RequestInterceptor {
 
     @Override

@@ -133,6 +133,14 @@ REDIS_HOST=127.0.0.1
 mvn -DskipTests clean package
 ```
 
+各 Spring Boot 模块在各自目录下的 `Dockerfile` 中复制 `target/*-SNAPSHOT.jar` 运行。**请先执行上一步再打镜像**，否则 `docker compose build` 会因缺少 jar 失败。
+
+**Go batch-service**：在 `batch-service/` 目录先执行 `go build -ldflags="-s -w" -o batch-service .`，再 `docker compose build batch-service`。
+
+**Python data-agent**：镜像内安装依赖并复制源码；仅改 Python 时可直接 `docker compose build data-agent`。
+
+**Docker 拉基础镜像 EOF / 超时**：若本机配置了 `registry-mirrors`（如 `docker.mirrors.ustc.edu.cn`）且已失效，请在 Docker Desktop → Settings → Docker Engine 中删除或更换镜像源；本仓库各 `Dockerfile` 的 `FROM` 已改为经 `docker.m.daocloud.io` 拉取以降低对 `docker.io` 镜像加速的依赖。
+
 ## 📁 项目结构
 
 ```
@@ -172,9 +180,8 @@ CrediFlow/
 │   ├── e2e-test-checklist.md  # 端到端测试清单
 │   └── ...
 │
-├── docker-compose.yml         # 全量编排 (基础设施 + 10 个业务服务)
-├── Dockerfile.java            # Java 微服务统一多阶段构建
-├── .env.example               # 环境变量模板
+├── docker-compose.yml         # 全量编排 (基础设施 + 各业务服务)
+├── .env.example               # 环境变量模板（各模块 Dockerfile 见对应子目录）
 └── pom.xml                    # Maven 父 POM
 ```
 

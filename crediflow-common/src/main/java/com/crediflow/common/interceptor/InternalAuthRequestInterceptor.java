@@ -3,14 +3,13 @@ package com.crediflow.common.interceptor;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-@Component
 public class InternalAuthRequestInterceptor implements RequestInterceptor {
 
     @Value("${crediflow.internal.secret:default-secret-key-123}")

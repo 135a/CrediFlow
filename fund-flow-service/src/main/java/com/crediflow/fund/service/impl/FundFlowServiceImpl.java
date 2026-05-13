@@ -5,6 +5,7 @@ import com.crediflow.fund.entity.FundFlow;
 import com.crediflow.fund.mapper.FundFlowMapper;
 import com.crediflow.fund.service.FundFlowService;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -51,5 +52,24 @@ public class FundFlowServiceImpl extends ServiceImpl<FundFlowMapper, FundFlow> i
         flow.setUpdatedAt(new Date());
         
         this.save(flow);
+    }
+
+    @Override
+    public void recordFlow(Long userId, String type, BigDecimal amount, String tradeNo, String status) {
+        FundFlow flow = new FundFlow();
+        flow.setFlowNo("FLW" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
+        flow.setUserId(userId);
+        flow.setAmount(amount);
+        flow.setType(type);
+        flow.setThirdPartyTradeNo(tradeNo);
+        flow.setStatus(status);
+        flow.setCreatedAt(new Date());
+        flow.setUpdatedAt(new Date());
+        this.save(flow);
+    }
+
+    @Override
+    public boolean verifyThirdPartyCallback(java.util.Map<String, String> params) {
+        return true; // Mock true for now
     }
 }

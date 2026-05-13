@@ -3,9 +3,30 @@ server:
 spring:
   application:
     name: fund-flow-service
+
+  flyway:
+    enabled: true
+    table: flyway_history_
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:crediflow}?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:crediflow}
+    password: ${MYSQL_PASSWORD:crediflow}
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER:nacos:8848}
         namespace: ${NACOS_NAMESPACE:}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:rmqnamesrv:9876}
+  producer:
+    group: fund-flow-service-producer
+
+
+

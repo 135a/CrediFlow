@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Map;
 
-@FeignClient(name = "user-service", url = "${user.url:http://localhost:8081}")
+@FeignClient(name = "user-service")
 public interface UserClient {
     @GetMapping("/api/app/user/kyc/status")
     Result<Map<String, Object>> getKycStatus(@RequestParam("userId") Long userId);

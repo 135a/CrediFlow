@@ -31,11 +31,11 @@ public class RepaymentPlanServiceImpl extends ServiceImpl<RepaymentPlanMapper, R
             RepaymentPlan plan = new RepaymentPlan();
             plan.setApplicationId(applicationId);
             plan.setUserId(userId);
-            plan.setTermIndex(i);
+            plan.setPeriod(i);
             plan.setTotalTerms(totalTerms);
-            plan.setPrincipalAmount(principalPerTerm);
-            plan.setInterestAmount(interestPerTerm);
-            plan.setPenaltyAmount(BigDecimal.ZERO);
+            plan.setPrincipal(principalPerTerm);
+            plan.setInterest(interestPerTerm);
+            plan.setPenalty(BigDecimal.ZERO);
             plan.setTotalAmount(principalPerTerm.add(interestPerTerm));
             plan.setDueDate(cal.getTime());
             plan.setStatus("PENDING");
