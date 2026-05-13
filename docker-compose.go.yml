@@ -1,0 +1,11 @@
+networks:
+  internal:
+    driver: bridge
+
+services:
+  batch-service:
+    build:
+      context: ./go/batch-service
+    networks: [internal]
+    env_file:
+      - .env

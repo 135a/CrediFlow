@@ -1,0 +1,56 @@
+networks:
+  internal:
+    driver: bridge
+
+services:
+  user-service:
+    build:
+      context: ./java/user-service
+    networks: [internal]
+
+  credit-risk-service:
+    build:
+      context: ./java/credit-risk-service
+    networks: [internal]
+
+  loan-application-service:
+    build:
+      context: ./java/loan-application-service
+    networks: [internal]
+    ports:
+      - "8083:8083"
+
+  loan-contract-service:
+    build:
+      context: ./java/loan-contract-service
+    networks: [internal]
+
+  repayment-service:
+    build:
+      context: ./java/repayment-service
+    networks: [internal]
+
+  post-loan-service:
+    build:
+      context: ./java/post-loan-service
+    networks: [internal]
+
+  fund-flow-service:
+    build:
+      context: ./java/fund-flow-service
+    networks: [internal]
+
+  admin-bff-service:
+    build:
+      context: ./java/admin-bff-service
+    networks: [internal]
+
+  app-bff-service:
+    build:
+      context: ./java/app-bff-service
+    networks: [internal]
+
+  system-service:
+    build:
+      context: ./java/system-service
+    networks: [internal]

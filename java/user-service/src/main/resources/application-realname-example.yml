@@ -1,0 +1,30 @@
+# 复制为本地 profile 片段或合并到 Nacos（勿提交含生产密钥的副本到仓库）。
+# 使用方式示例：spring.profiles.active=dev,realname-mock
+---
+spring:
+  config:
+    activate:
+      on-profile: realname-mock
+crediflow:
+  realname:
+    enabled: true
+    mock-success: true
+    provider-type: noop
+    idempotency-salt: "local-dev-only-not-for-prod"
+---
+spring:
+  config:
+    activate:
+      on-profile: realname-http-dev
+crediflow:
+  realname:
+    enabled: true
+    mock-success: false
+    provider-type: hmacSha256
+    base-url: https://sandbox.vendor.example/realname/verify
+    app-key: "YOUR_SANDBOX_KEY"
+    app-secret: "YOUR_SANDBOX_SECRET"
+    connect-timeout: 3s
+    read-timeout: 15s
+    signature-script: ""
+    request-body-template: '{"name":"{{realName}}","idNo":"{{idCardNo}}","ts":{{timestamp}},"sign":"{{signature}}"}'

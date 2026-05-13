@@ -1,0 +1,13 @@
+networks:
+  internal:
+    driver: bridge
+
+services:
+  data-agent:
+    build:
+      context: ./python/data-agent
+    networks: [internal]
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env

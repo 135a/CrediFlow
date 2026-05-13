@@ -1,0 +1,49 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: user-service
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:crediflow}?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:crediflow}
+    password: ${MYSQL_PASSWORD:crediflow}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    table: flyway_history_
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:rmqnamesrv:9876}
+  producer:
+    group: user-service-producer
+crediflow:
+  demo-mq-consumer: ${CREDIFLOW_DEMO_MQ_CONSUMER:false}
+  realname:
+    enabled: ${CREDIFLOW_REALNAME_ENABLED:true}
+    mock-success: ${CREDIFLOW_REALNAME_MOCK_SUCCESS:false}
+    provider-type: ${CREDIFLOW_REALNAME_PROVIDER_TYPE:noop}
+    base-url: ${CREDIFLOW_REALNAME_BASE_URL:}
+    app-key: ${CREDIFLOW_REALNAME_APP_KEY:}
+    app-secret: ${CREDIFLOW_REALNAME_APP_SECRET:}
+    connect-timeout: ${CREDIFLOW_REALNAME_CONNECT_TIMEOUT:3s}
+    read-timeout: ${CREDIFLOW_REALNAME_READ_TIMEOUT:10s}
+    request-body-template: '{"name":"{{realName}}","idNo":"{{idCardNo}}","ts":{{timestamp}},"sign":"{{signature}}"}'
+    idempotency-salt: ${CREDIFLOW_REALNAME_IDEMPOTENCY_SALT:dev-change-in-nacos}
+    rate-limit-window-seconds: ${CREDIFLOW_REALNAME_RL_WINDOW:3600}
+    rate-limit-max-requests: ${CREDIFLOW_REALNAME_RL_MAX:20}
+    idempotency-ttl-seconds: ${CREDIFLOW_REALNAME_IDEMPOTENCY_TTL:300}
+    response-matched-json-path: match
+    response-txn-no-json-path: txnNo
+    response-message-json-path: message
+    response-id-valid-json-path: idValid
+
