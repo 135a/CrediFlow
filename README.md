@@ -135,54 +135,57 @@ mvn -DskipTests clean package
 
 各 Spring Boot 模块在各自目录下的 `Dockerfile` 中复制 `target/*-SNAPSHOT.jar` 运行。**请先执行上一步再打镜像**，否则 `docker compose build` 会因缺少 jar 失败。
 
-**Go batch-service**：在 `batch-service/` 目录先执行 `go build -ldflags="-s -w" -o batch-service .`，再 `docker compose build batch-service`。
+**Go batch-service**：在 `batch/batch-service/` 目录先执行 `go build -ldflags="-s -w" -o batch-service .`，再 `docker compose build batch-service`。
 
-**Python data-agent**：镜像内安装依赖并复制源码；仅改 Python 时可直接 `docker compose build data-agent`。
+**Python data-agent**：镜像内安装依赖并复制源码；仅改 Python 时可直接 `docker compose build data-agent`（对应目录：`credit/data-agent/`）。
 
 **Docker 拉基础镜像 EOF / 超时**：若本机配置了 `registry-mirrors`（如 `docker.mirrors.ustc.edu.cn`）且已失效，请在 Docker Desktop → Settings → Docker Engine 中删除或更换镜像源；本仓库各 `Dockerfile` 的 `FROM` 已改为经 `docker.m.daocloud.io` 拉取以降低对 `docker.io` 镜像加速的依赖。
 
 ## 📁 项目结构
 
+经过领域驱动设计（DDD）的重构，代码库按业务域（Domain）划分，不再按语言隔离：
+
 ```
 CrediFlow/
-├── user-service/              # 用户服务 - 注册/登录/认证/画像
-├── credit-risk-service/       # 授信风控 - 额度评估/风控规则/AI Agent 对接
-├── loan-application-service/  # 贷款申请 - 申请提交/资料审核/状态流转
-├── loan-contract-service/     # 借款合同 - 电子合同生成/签署/归档
-├── repayment-service/         # 还款分期 - 还款计划/主动还款/分期管理
-├── post-loan-service/         # 贷后管理 - 逾期判定/罚息计算/催收任务
-├── fund-flow-service/         # 资金流水 - 放还款流水/对账校验/统计
-├── system-service/            # 系统后台 - 角色/权限/操作日志审计
-├── app-bff-service/           # App 端 BFF 聚合层
-├── admin-bff-service/         # 管理端 BFF 聚合层
-├── crediflow-common/          # 公共模块 - 统一响应/异常/工具类
+├── bff/                       # 聚合层域
+│   ├── admin-bff-service/     # 管理端 BFF 聚合层 (Java)
+│   └── app-bff-service/       # App 端 BFF 聚合层 (Java)
 │
-├── batch-service/             # [Go] 分布式任务调度服务
-│   ├── main.go
-│   └── Dockerfile
+├── user/                      # 用户域
+│   └── user-service/          # 用户服务 - 注册/登录/认证/画像 (Java)
 │
-├── data-agent/                # [Python] AI Data Agent 智能决策服务
-│   ├── app.py                 # FastAPI 入口
-│   ├── rag_graph.py           # LangGraph RAG 检索-生成流程
-│   ├── embedding_adapters.py  # 可插拔 Embedding 适配器 (Qwen/Zhipu/Ernie/OpenAI)
-│   ├── llm_adapters.py        # 可插拔 LLM 适配器
-│   ├── nl2sql.py              # NL2SQL 安全引擎 (只读/白名单/PII 脱敏)
-│   ├── nl2api.py              # NL2API 白名单网关
-│   ├── milvus_manager.py      # Milvus 向量库管理 (动态维度)
-│   ├── config.py              # 统一配置
-│   └── Dockerfile
+├── credit/                    # 信用与风控域
+│   ├── credit-risk-service/   # 授信风控服务 - 额度评估/风控规则 (Java)
+│   └── data-agent/            # AI Data Agent 智能决策大脑 (Python)
+│
+├── loan/                      # 借款域
+│   └── loan-application-service/ # 贷款申请 - 申请提交/资料审核/状态流转 (Java)
+│
+├── contract/                  # 合同域
+│   └── loan-contract-service/ # 借款合同 - 电子合同生成/签署/归档 (Java)
+│
+├── fund/                      # 资金与账务域
+│   ├── fund-flow-service/     # 资金流水 - 放还款流水/对账校验/统计 (Java)
+│   ├── repayment-service/     # 还款分期 - 还款计划/主动还款/分期管理 (Java)
+│   └── fund-channel-gateway/  # 资金渠道网关 (Go)
+│
+├── post-loan/                 # 贷后域
+│   └── post-loan-service/     # 贷后管理 - 逾期判定/罚息计算/催收任务 (Java)
+│
+├── batch/                     # 调度域
+│   └── batch-service/         # 分布式定时任务调度服务 (Go)
+│
+├── system-service/            # 系统域后台 - 角色/权限/操作日志审计 (Java)
+├── crediflow-common/          # 公共组件库 - 统一响应/异常/工具类 (Java)
 │
 ├── infra/                     # 基础设施配置
 │   └── apisix/                # APISIX 网关路由与插件配置
 ├── observability/             # 可观测性 (Prometheus/Grafana)
 ├── docs/                      # 文档资料
-│   ├── openapi.json           # OpenAPI 3.0 接口规范
-│   ├── e2e-test-checklist.md  # 端到端测试清单
-│   └── ...
 │
 ├── docker-compose.yml         # 全量编排 (基础设施 + 各业务服务)
-├── .env.example               # 环境变量模板（各模块 Dockerfile 见对应子目录）
-└── pom.xml                    # Maven 父 POM
+├── .env.example               # 环境变量模板
+└── pom.xml                    # Maven 顶层全局 POM
 ```
 
 ## 🛠️ 技术栈

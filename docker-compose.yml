@@ -109,7 +109,7 @@ services:
 
   user-service:
     build:
-      context: ./java/user-service
+      context: ./user/user-service
     networks: [internal]
     depends_on:
       mysql:
@@ -119,7 +119,7 @@ services:
 
   credit-risk-service:
     build:
-      context: ./java/credit-risk-service
+      context: ./credit/credit-risk-service
     networks: [internal]
     depends_on:
       mysql:
@@ -129,7 +129,7 @@ services:
 
   loan-application-service:
     build:
-      context: ./java/loan-application-service
+      context: ./loan/loan-application-service
     networks: [internal]
     ports:
       - "8083:8083"
@@ -141,7 +141,7 @@ services:
 
   loan-contract-service:
     build:
-      context: ./java/loan-contract-service
+      context: ./contract/loan-contract-service
     networks: [internal]
     depends_on:
       mysql:
@@ -151,7 +151,7 @@ services:
 
   repayment-service:
     build:
-      context: ./java/repayment-service
+      context: ./fund/repayment-service
     networks: [internal]
     depends_on:
       mysql:
@@ -161,7 +161,7 @@ services:
 
   post-loan-service:
     build:
-      context: ./java/post-loan-service
+      context: ./post-loan/post-loan-service
     networks: [internal]
     depends_on:
       mysql:
@@ -171,7 +171,7 @@ services:
 
   fund-flow-service:
     build:
-      context: ./java/fund-flow-service
+      context: ./fund/fund-flow-service
     networks: [internal]
     depends_on:
       mysql:
@@ -183,7 +183,7 @@ services:
 
   admin-bff-service:
     build:
-      context: ./java/admin-bff-service
+      context: ./bff/admin-bff-service
     networks: [internal]
     depends_on:
       nacos:
@@ -191,7 +191,7 @@ services:
 
   app-bff-service:
     build:
-      context: ./java/app-bff-service
+      context: ./bff/app-bff-service
     networks: [internal]
     depends_on:
       nacos:
@@ -199,7 +199,7 @@ services:
 
   system-service:
     build:
-      context: ./java/system-service
+      context: ./system-service
     networks: [internal]
     depends_on:
       mysql:
@@ -211,7 +211,7 @@ services:
 
   batch-service:
     build:
-      context: ./go/batch-service
+      context: ./batch/batch-service
     networks: [internal]
     env_file:
       - .env
@@ -221,7 +221,7 @@ services:
 
   fund-channel-gateway:
     build:
-      context: ./go/fund-channel-gateway
+      context: ./fund/fund-channel-gateway
     networks: [internal]
     env_file:
       - .env
@@ -235,7 +235,7 @@ services:
 
   data-agent:
     build:
-      context: ./python/data-agent
+      context: ./credit/data-agent
     networks: [internal]
     ports:
       - "8000:8000"
