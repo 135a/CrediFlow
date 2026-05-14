@@ -199,7 +199,7 @@ services:
 
   system-service:
     build:
-      context: ./system-service
+      context: ./system/system-service
     networks: [internal]
     depends_on:
       mysql:

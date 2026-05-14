@@ -46,7 +46,7 @@
     </dependencyManagement>
 
     <modules>
-        <module>crediflow-common</module>
+        <module>common/crediflow-common</module>
         <module>bff/admin-bff-service</module>
         <module>bff/app-bff-service</module>
         <module>user/user-service</module>
@@ -56,7 +56,7 @@
         <module>fund/repayment-service</module>
         <module>post-loan/post-loan-service</module>
         <module>fund/fund-flow-service</module>
-        <module>system-service</module>
+        <module>system/system-service</module>
     </modules>
 
     <build>

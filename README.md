@@ -175,8 +175,10 @@ CrediFlow/
 ├── batch/                     # 调度域
 │   └── batch-service/         # 分布式定时任务调度服务 (Go)
 │
-├── system-service/            # 系统域后台 - 角色/权限/操作日志审计 (Java)
-├── crediflow-common/          # 公共组件库 - 统一响应/异常/工具类 (Java)
+├── system/                    # 系统域
+│   └── system-service/        # 系统域后台 - 角色/权限/操作日志审计 (Java)
+├── common/                    # 公共层域
+│   └── crediflow-common/      # 公共组件库 - 统一响应/异常/工具类 (Java)
 │
 ├── infra/                     # 基础设施配置
 │   └── apisix/                # APISIX 网关路由与插件配置
