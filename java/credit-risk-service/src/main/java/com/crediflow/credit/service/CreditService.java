@@ -12,4 +12,9 @@ public interface CreditService extends IService<CreditResult> {
      * 生成或更新用户授信额度
      */
     void generateUserQuota(Long userId, double totalScore);
+
+    /**
+     * 高并发安全的额度扣减接口（基于乐观锁）
+     */
+    void deductQuota(Long userId, java.math.BigDecimal amount);
 }

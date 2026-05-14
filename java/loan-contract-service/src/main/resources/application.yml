@@ -31,6 +31,9 @@ rocketmq:
 crediflow:
   contract:
     interest-rate: ${INTEREST_RATE:0.0003}
+  loan:
+    rate:
+      annual: 0.18
 
 
 

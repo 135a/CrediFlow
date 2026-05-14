@@ -34,6 +34,11 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     @Override
     @com.crediflow.common.annotation.Idempotent(key = "'LOAN_APP:' + #idmpToken")
     public LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idmpToken) {
+        // 0.0 校验分期期数是否在白名单内
+        if (term == null || (term != 3 && term != 6 && term != 12)) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "不支持的分期期数，仅支持 3, 6, 12 期");
+        }
+
         // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
         Result<Map<String, Object>> eligibility = userClient.getEligibility(userId);
         if (eligibility == null || eligibility.getData() == null) {
@@ -76,17 +81,48 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "必须先签署授信协议才能借款");
         }
 
-        // 3. 状态机：创建申请单 (PENDING)
+        // 3. 状态机：创建申请单 (INIT -> 评估)
         LoanApplication application = new LoanApplication();
         application.setApplicationNo("LOAN" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
         application.setUserId(userId);
         application.setApplyAmount(applyAmount);
         application.setTerm(term);
-        application.setStatus("PENDING");
+        application.setStatus("PENDING_RISK");
         application.setCreatedAt(new Date());
         application.setUpdatedAt(new Date());
-
         this.save(application);
+
+        // 4. 同步调用风控评估
+        Map<String, Object> evalReq = new java.util.HashMap<>();
+        evalReq.put("userId", userId);
+        evalReq.put("applicationId", application.getId());
+        evalReq.put("applyAmount", applyAmount);
+        
+        Result<String> evalResult = creditClient.evaluateLoanRisk(evalReq);
+        if (evalResult == null || evalResult.getCode() != 200) {
+            application.setStatus("REJECTED"); // 风控拦截或异常直接拒绝
+            this.updateById(application);
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, evalResult != null ? evalResult.getMessage() : "风控评估失败");
+        }
+        
+        String riskLevel = evalResult.getData(); // LOW, MEDIUM, HIGH, REJECTED
+        application.setRiskLevel(riskLevel);
+        if ("REJECTED".equals(riskLevel)) {
+            application.setStatus("REJECTED");
+            this.updateById(application);
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "风控拦截，暂不符合借款条件");
+        } else if ("LOW".equals(riskLevel)) {
+            // 低风险，直接进入合同处理
+            application.setStatus("CONTRACT_PROCESSING");
+            this.updateById(application);
+            // 触发放款流程
+            this.approve(application.getId());
+        } else if ("MEDIUM".equals(riskLevel) || "HIGH".equals(riskLevel)) {
+            // 中高风险，进入人脸识别环节
+            application.setStatus("PENDING_FACE");
+            this.updateById(application);
+        }
+
         return application;
     }
 
@@ -108,6 +144,11 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         message.setLoanApplicationId(application.getId());
         message.setUserId(application.getUserId());
         message.setEventType(com.crediflow.common.event.MqConstants.TAG_LOAN_APPROVED);
+        
+        java.util.Map<String, Object> payloadMap = new java.util.HashMap<>();
+        payloadMap.put("applyAmount", application.getApplyAmount());
+        payloadMap.put("term", application.getTerm());
+        message.setPayload(payloadMap);
         
         try {
             com.crediflow.application.entity.LocalMessage localMsg = new com.crediflow.application.entity.LocalMessage();

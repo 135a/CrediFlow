@@ -52,13 +52,21 @@ def manual_review_assistant(data: dict):
     
     total_score = score_detail.get("totalScore", 50)
     risk_level = score_detail.get("riskLevel", "HIGH")
+    scene_type = data.get("sceneType", "CREDIT")
     
     # Generate risk details
-    risk_details = [
-        "近期多头借贷频繁，命中外部多头借贷黑名单",
-        "常用设备发生异常变更（跨省登录）",
-        f"模型评分过低 ({total_score}分)，历史违约倾向较高"
-    ]
+    if scene_type == "LOAN":
+        risk_details = [
+            "借款金额占可用额度比例过高",
+            "深夜（凌晨2点）发起借款，具有明显的风险特征",
+            f"风控模型借款评分过低 ({total_score}分)，放款风险极大"
+        ]
+    else:
+        risk_details = [
+            "近期多头借贷频繁，命中外部多头借贷黑名单",
+            "常用设备发生异常变更（跨省登录）",
+            f"模型评分过低 ({total_score}分)，历史违约倾向较高"
+        ]
     
     # Calculate probabilities
     default_prob = round(1.0 - (total_score / 100.0), 2)

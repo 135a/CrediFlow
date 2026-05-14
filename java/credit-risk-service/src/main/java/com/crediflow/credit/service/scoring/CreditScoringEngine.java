@@ -7,4 +7,5 @@ public interface CreditScoringEngine {
      * @return 评分详情
      */
     ScoreDetail calculateScore(Long userId);
+    ScoreDetail calculateLoanScore(Long userId);
 }

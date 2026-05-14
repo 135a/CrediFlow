@@ -60,4 +60,58 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         map.put("link", "https://oss.crediflow.com/contracts/dummy.pdf");
         return map;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.crediflow.contract.mapper.LoanReceiptMapper loanReceiptMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.crediflow.contract.mapper.RepaymentPlanMapper repaymentPlanMapper;
+
+    @org.springframework.beans.factory.annotation.Value("${crediflow.loan.rate.annual:0.18}")
+    private String annualRateStr;
+
+    @org.springframework.transaction.annotation.Transactional
+    public void generateReceiptAndPlan(Long applicationId, Long userId, java.math.BigDecimal amount, Integer term) {
+        // 1. 生成借据
+        com.crediflow.contract.entity.LoanReceipt receipt = new com.crediflow.contract.entity.LoanReceipt();
+        receipt.setReceiptNo("REC" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
+        receipt.setApplicationId(applicationId);
+        receipt.setUserId(userId);
+        receipt.setPrincipalAmount(amount);
+        receipt.setAnnualInterestRate(new java.math.BigDecimal(annualRateStr)); // dynamic annual rate
+        receipt.setTotalTerms(term);
+        receipt.setStatus("ACTIVE");
+        receipt.setCreatedAt(new Date());
+        receipt.setUpdatedAt(new Date());
+        loanReceiptMapper.insert(receipt);
+
+        // 2. 拆分还款计划 (简单等额本金示例)
+        java.math.BigDecimal principalPerTerm = amount.divide(new java.math.BigDecimal(term), 2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal monthlyInterestRate = receipt.getAnnualInterestRate().divide(new java.math.BigDecimal(12), 4, java.math.RoundingMode.HALF_UP);
+        
+        java.math.BigDecimal remainingPrincipal = amount;
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        
+        for (int i = 1; i <= term; i++) {
+            com.crediflow.contract.entity.RepaymentPlan plan = new com.crediflow.contract.entity.RepaymentPlan();
+            plan.setReceiptId(receipt.getId());
+            plan.setUserId(userId);
+            plan.setTermNo(i);
+            
+            java.math.BigDecimal currentPrincipal = (i == term) ? remainingPrincipal : principalPerTerm;
+            java.math.BigDecimal currentInterest = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, java.math.RoundingMode.HALF_UP);
+            
+            plan.setPrincipalAmount(currentPrincipal);
+            plan.setInterestAmount(currentInterest);
+            
+            cal.add(java.util.Calendar.MONTH, 1);
+            plan.setDueDate(cal.getTime());
+            plan.setStatus("PENDING");
+            plan.setCreatedAt(new Date());
+            plan.setUpdatedAt(new Date());
+            repaymentPlanMapper.insert(plan);
+            
+            remainingPrincipal = remainingPrincipal.subtract(currentPrincipal);
+        }
+    }
 }

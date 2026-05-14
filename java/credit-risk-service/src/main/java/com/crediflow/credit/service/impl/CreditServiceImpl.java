@@ -231,4 +231,34 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         
         userCreditQuotaMapper.insert(quota);
     }
+
+    @Override
+    public void deductQuota(Long userId, java.math.BigDecimal amount) {
+        int maxRetries = 3;
+        for (int i = 0; i < maxRetries; i++) {
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserCreditQuota> query = 
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            query.eq(UserCreditQuota::getUserId, userId).last("LIMIT 1");
+            UserCreditQuota quota = userCreditQuotaMapper.selectOne(query);
+            if (quota == null) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR, "用户额度不存在");
+            }
+            if (quota.getAvailableAmount().compareTo(amount) < 0) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR, "可用额度不足");
+            }
+            
+            int updated = userCreditQuotaMapper.update(null, 
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<UserCreditQuota>()
+                    .eq(UserCreditQuota::getUserId, userId)
+                    .eq(UserCreditQuota::getVersion, quota.getVersion())
+                    .set(UserCreditQuota::getAvailableAmount, quota.getAvailableAmount().subtract(amount))
+                    .set(UserCreditQuota::getUsedAmount, quota.getUsedAmount().add(amount))
+                    .set(UserCreditQuota::getVersion, quota.getVersion() + 1));
+                    
+            if (updated > 0) {
+                return; // success
+            }
+        }
+        throw new BusinessException(ErrorCode.BUSINESS_ERROR, "系统繁忙，额度扣减失败，请稍后重试");
+    }
 }

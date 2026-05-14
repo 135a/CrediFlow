@@ -19,6 +19,9 @@ public class FaceCallbackController {
     @org.springframework.beans.factory.annotation.Autowired
     private com.crediflow.credit.mapper.CreditScoreMapper creditScoreMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.crediflow.credit.service.impl.ManualReviewAsyncService manualReviewAsyncService;
+
     @PostMapping("/callback")
     public Result<Void> handleFaceCallback(@RequestBody FaceCallbackRequest request) {
         log.info("Received face liveness callback for applicationId: {}, passed: {}", 
@@ -49,8 +52,7 @@ public class FaceCallbackController {
                 com.crediflow.credit.entity.CreditScore score = creditScoreMapper.selectOne(query);
                 double totalScore = score != null ? score.getTotalScore() : 50.0;
                 // Use application context to avoid cyclic dependency if needed, or inject directly
-                com.crediflow.common.utils.SpringContextUtils.getBean(com.crediflow.credit.service.impl.ManualReviewAsyncService.class)
-                    .generateManualReviewAssistant(application.getId(), application.getUserId(), totalScore, application.getModelRiskLevel());
+                manualReviewAsyncService.generateManualReviewAssistant(application.getId(), application.getUserId(), totalScore, application.getModelRiskLevel());
             } else {
                 application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_APPROVED);
             }

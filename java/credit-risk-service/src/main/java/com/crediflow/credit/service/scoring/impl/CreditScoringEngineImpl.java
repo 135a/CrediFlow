@@ -19,8 +19,22 @@ public class CreditScoringEngineImpl implements CreditScoringEngine {
     @Value("${crediflow.credit.scoring.version:v2.0}")
     private String scoringVersion;
 
+    @Value("${crediflow.loan.threshold.low:85}")
+    private double loanLowRiskThreshold;
+
+    @Value("${crediflow.loan.threshold.high:60}")
+    private double loanHighRiskThreshold;
+
     @Override
     public ScoreDetail calculateScore(Long userId) {
+        return doCalculate(userId, lowRiskThreshold, highRiskThreshold);
+    }
+
+    public ScoreDetail calculateLoanScore(Long userId) {
+        return doCalculate(userId, loanLowRiskThreshold, loanHighRiskThreshold);
+    }
+
+    private ScoreDetail doCalculate(Long userId, double lowThresh, double highThresh) {
         log.info("Calculating credit score for user: {}", userId);
         
         // 1.2 实现 S1~S4 计算器 (Mock data for now, TODO: Fetch real external credit data)
@@ -35,9 +49,9 @@ public class CreditScoringEngineImpl implements CreditScoringEngine {
         
         // RiskLevelClassifier
         String riskLevel;
-        if (totalScore >= lowRiskThreshold) {
+        if (totalScore >= lowThresh) {
             riskLevel = "LOW";
-        } else if (totalScore < highRiskThreshold) {
+        } else if (totalScore < highThresh) {
             riskLevel = "HIGH";
         } else {
             riskLevel = "MEDIUM";

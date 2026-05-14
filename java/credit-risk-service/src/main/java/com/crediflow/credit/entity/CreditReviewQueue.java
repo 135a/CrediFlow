@@ -14,6 +14,7 @@ public class CreditReviewQueue {
     private Long id;
     private Long applicationId;
     private Long userId;
+    private String sceneType; // CREDIT, LOAN
     
     // AI 辅助三件套
     private String riskDetails; // JSON string of list

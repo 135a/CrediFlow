@@ -13,6 +13,7 @@
 1. **KYC 通过**：`cf_user_kyc_v2.kyc_passed=1`（即 `realname_status=VERIFIED ∧ face_status=VERIFIED`）
 2. **主卡已绑定且 VERIFIED**：`cf_user_bank_card` 至少有一条 `status=VERIFIED ∧ is_primary=1`
 3. **授信已通过**：存在有效授信（与 `credit-risk-service` 协作的内部查询契约）
+4. **借款期数合法**：入参中的 `term` MUST 是被允许的枚举值集合（3、6、12）之一
 
 任一未满足 MUST 在受理前拦截。该前置校验 MUST 通过 `microservice-user` 的内部接口（如 `/api/internal/user/eligibility`）与授信服务的内部接口完成查询，MUST NOT 跨服务直接读表。系统 MUST 维护申请状态机（至少包含：草稿/已提交/审核中/通过/拒绝/取消）；状态迁移 MUST 合法且可审计。
 
@@ -32,6 +33,11 @@
 
 - **WHEN** 调用方尝试从终态（拒绝或取消）迁移到非允许状态
 - **THEN** 系统 MUST 拒绝操作并返回可诊断错误码
+
+#### Scenario: 用户传入非法期数被拒绝
+
+- **WHEN** 用户调用借款接口，传入 `term=4`
+- **THEN** 系统 MUST 拒绝受理，并返回明确的期数不合法提示
 
 ### Requirement: 资料审核与资格校验
 

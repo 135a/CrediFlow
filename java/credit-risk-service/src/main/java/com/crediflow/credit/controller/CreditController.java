@@ -136,4 +136,69 @@ public class CreditController {
         
         return Result.success();
     }
+
+    @Autowired
+    private com.crediflow.credit.service.scoring.CreditScoringEngine creditScoringEngine;
+
+    @Inner
+    @PostMapping("/internal/evaluate-loan")
+    public Result<String> evaluateLoanRisk(@RequestBody java.util.Map<String, Object> req) {
+        Long userId = Long.valueOf(req.get("userId").toString());
+        
+        // 2.2 实时规则校验管线
+        // 1. 检查是否存在未结清的逾期借款 (Mock)
+        boolean hasOverdue = false; // TODO: check actual overdue loans
+        if (hasOverdue) {
+            return Result.success("REJECTED");
+        }
+        
+        // 2. 检查深夜高频异地 (Mock)
+        java.time.LocalTime now = java.time.LocalTime.now();
+        if (now.getHour() >= 1 && now.getHour() <= 4) {
+            boolean highFrequency = false; // mock high frequency
+            if (highFrequency) {
+                return Result.success("REJECTED");
+            }
+        }
+        
+        // 2.3 复用授信四维模型，加载借款专属高门槛阈值
+        com.crediflow.credit.service.scoring.ScoreDetail detail = creditScoringEngine.calculateLoanScore(userId);
+        
+        return Result.success(detail.getRiskLevel());
+    }
+
+    @Autowired
+    private com.crediflow.credit.service.impl.ManualReviewAsyncService manualReviewAsyncService;
+
+    @Inner
+    @PostMapping("/internal/review/enqueue")
+    public Result<Void> enqueueLoanReview(@RequestBody java.util.Map<String, Object> req) {
+        Long applicationId = Long.valueOf(req.get("applicationId").toString());
+        Long userId = Long.valueOf(req.get("userId").toString());
+        String sceneType = (String) req.getOrDefault("sceneType", "LOAN");
+        
+        com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
+        queue.setApplicationId(applicationId);
+        queue.setUserId(userId);
+        queue.setSceneType(sceneType);
+        queue.setStatus("PENDING");
+        queue.setCreatedAt(new java.util.Date());
+        queue.setUpdatedAt(new java.util.Date());
+        
+        creditReviewQueueMapper.insert(queue);
+        
+        // 触发 Python Agent 进行借款审核三件套生成
+        manualReviewAsyncService.generateManualReviewAssistantWithScene(applicationId, userId, 50.0, "HIGH", sceneType); // mock score/risk
+            
+        return Result.success();
+    }
+
+    @Inner
+    @PostMapping("/internal/quota/deduct")
+    public Result<Void> deductQuota(@RequestBody java.util.Map<String, Object> req) {
+        Long userId = Long.valueOf(req.get("userId").toString());
+        java.math.BigDecimal amount = new java.math.BigDecimal(req.get("amount").toString());
+        creditService.deductQuota(userId, amount);
+        return Result.success();
+    }
 }

@@ -28,11 +28,17 @@ public class ManualReviewAsyncService {
 
     @Async
     public void generateManualReviewAssistant(Long applicationId, Long userId, double totalScore, String riskLevel) {
-        log.info("Starting async manual review assistant for applicationId: {}", applicationId);
+        generateManualReviewAssistantWithScene(applicationId, userId, totalScore, riskLevel, "CREDIT");
+    }
+
+    @Async
+    public void generateManualReviewAssistantWithScene(Long applicationId, Long userId, double totalScore, String riskLevel, String sceneType) {
+        log.info("Starting async manual review assistant for applicationId: {} sceneType: {}", applicationId, sceneType);
         
         try {
             Map<String, Object> reqData = new HashMap<>();
             reqData.put("userId", userId);
+            reqData.put("sceneType", sceneType);
             
             Map<String, Object> scoreDetail = new HashMap<>();
             scoreDetail.put("totalScore", totalScore);
@@ -44,6 +50,7 @@ public class ManualReviewAsyncService {
             CreditReviewQueue queue = new CreditReviewQueue();
             queue.setApplicationId(applicationId);
             queue.setUserId(userId);
+            queue.setSceneType(sceneType);
             queue.setRiskDetails(objectMapper.writeValueAsString(result.get("riskDetails")));
             queue.setDefaultProbability((Double) result.get("defaultProbability"));
             queue.setFraudProbability((Double) result.get("fraudProbability"));
@@ -61,6 +68,7 @@ public class ManualReviewAsyncService {
             CreditReviewQueue queue = new CreditReviewQueue();
             queue.setApplicationId(applicationId);
             queue.setUserId(userId);
+            queue.setSceneType(sceneType);
             queue.setRiskDetails("[\"AI分析失败，请人工排查\"]");
             queue.setDefaultProbability(0.99);
             queue.setFraudProbability(0.99);
