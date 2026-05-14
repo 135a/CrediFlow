@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Map;
 
-@FeignClient(name = "agent-service", url = "${agent.url:http://localhost:8000}", fallback = AgentClientFallback.class)
+@FeignClient(name = "agent-service", fallback = AgentClientFallback.class)
 public interface AgentClient {
     
     @PostMapping("/api/v1/credit/evaluate")

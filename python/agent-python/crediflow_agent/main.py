@@ -1,7 +1,25 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("crediflow_agent")
 
 app = FastAPI()
+
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    trace_id = request.headers.get("X-Trace-Id")
+    if trace_id:
+        logger.info(f"Received request with X-Trace-Id: {trace_id}")
+    else:
+        # TODO:后续在无 trace_id 时生成本地 trace_id
+        logger.info("Received request without X-Trace-Id")
+    
+    response = await call_next(request)
+    if trace_id:
+        response.headers["X-Trace-Id"] = trace_id
+    return response
 
 @app.get("/health")
 def health():
