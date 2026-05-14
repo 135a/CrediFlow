@@ -1,0 +1,13 @@
+{
+  "id": "local-app-user-login",
+  "name": "local-app-user-login",
+  "uri": "/api/app/user/login",
+  "priority": 100,
+  "methods": ["POST", "OPTIONS"],
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": [
+      { "host": "user-service", "port": 8080, "weight": 1 }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "username": "crediflow-jwt-demo",
+  "desc": "本地演示：与 user-service ExternalJwtUtils 中 claim key=crediflow-app-jwt 及对称密钥对齐",
+  "plugins": {
+    "jwt-auth": {
+      "key": "crediflow-app-jwt",
+      "secret": "CrediFlowExternalAuthSecretKey1234567890!",
+      "algorithm": "HS256"
+    }
+  }
+}

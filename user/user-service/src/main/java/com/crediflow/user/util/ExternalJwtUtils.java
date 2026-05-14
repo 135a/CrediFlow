@@ -16,6 +16,8 @@ public class ExternalJwtUtils {
     public static String generateToken(Long userId, String role) {
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
+                // 固定 key：与本地 APISIX jwt-auth Consumer 的 credential.key 对齐，供网关识别签名密钥
+                .claim("key", "crediflow-app-jwt")
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))

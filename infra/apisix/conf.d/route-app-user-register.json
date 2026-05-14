@@ -1,0 +1,13 @@
+{
+  "id": "local-app-user-register",
+  "name": "local-app-user-register",
+  "uri": "/api/app/user/register",
+  "priority": 100,
+  "methods": ["POST", "OPTIONS"],
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": [
+      { "host": "user-service", "port": 8080, "weight": 1 }
+    ]
+  }
+}

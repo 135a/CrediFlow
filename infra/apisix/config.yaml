@@ -3,6 +3,11 @@ deployment:
   role_traditional:
     config_provider: etcd
   admin:
+    # 本地演示用 Admin API 密钥（仅供 docker compose 开发机；切勿用于公网暴露的 Admin 端口）
+    admin_key:
+      - name: admin
+        key: crediflow-local-apisix-admin-key-demo
+        role: admin
     allow_admin:
       - 0.0.0.0/0
     admin_listen:

@@ -1,0 +1,13 @@
+{
+  "id": "local-app-user-auth",
+  "name": "local-app-user-auth",
+  "uri": "/api/app/user/auth/*",
+  "priority": 100,
+  "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": [
+      { "host": "user-service", "port": 8080, "weight": 1 }
+    ]
+  }
+}

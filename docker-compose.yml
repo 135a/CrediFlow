@@ -106,6 +106,28 @@ services:
     volumes:
       - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - apisix-logs:/usr/local/apisix/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9080/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  # 在 APISIX 就绪后，将仓库内声明式 JSON 经 Admin API 写入 etcd（本地开发；勿与 Dashboard 手改混用）
+  apisix-init:
+    image: curlimages/curl:8.5.0
+    networks: [internal]
+    depends_on:
+      apisix:
+        condition: service_healthy
+    environment:
+      APISIX_ADMIN: http://apisix:9180
+      ADMIN_KEY: crediflow-local-apisix-admin-key-demo
+    volumes:
+      - ./infra/apisix/scripts/sync-routes.sh:/scripts/sync-routes.sh:ro
+      - ./infra/apisix/conf.d:/conf.d:ro
+    entrypoint: ["sh", "/scripts/sync-routes.sh"]
+    restart: "no"
 
   user-service:
     build:

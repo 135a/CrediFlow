@@ -1,0 +1,27 @@
+{
+  "id": "local-app-catchall",
+  "name": "local-app-catchall",
+  "uri": "/api/app/*",
+  "priority": 0,
+  "upstream": {
+    "type": "roundrobin",
+    "nodes": [
+      { "host": "app-bff-service", "port": 8080, "weight": 1 }
+    ]
+  },
+  "plugins": {
+    "jwt-auth": {
+      "_meta": { "priority": 2500 },
+      "header": "Authorization",
+      "hide_credentials": false,
+      "store_in_ctx": true
+    },
+    "serverless-post-function": {
+      "_meta": { "priority": 2400 },
+      "phase": "access",
+      "functions": [
+        "return function(conf, ctx) local sub if ngx.ctx.jwt_auth_payload then local p=ngx.ctx.jwt_auth_payload sub=p.sub or (p.payload and p.payload.sub) end if sub then ngx.req.set_header('X-User-Id', tostring(sub)) end end"
+      ]
+    }
+  }
+}
