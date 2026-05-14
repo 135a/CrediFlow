@@ -22,7 +22,7 @@
 
 ## 📖 项目简介
 
-CrediFlow 是一套面向小额信贷场景的**企业级全链路后端系统**，融合 **Java 微服务 + Go 分布式调度 + Python AI Agent** 三语言协同架构，覆盖从用户注册、授信评估、贷款申请、合同签署、分期还款到贷后风控的完整信贷业务生命周期。
+CrediFlow 是一套面向小额信贷场景的**企业级全链路后端系统**，融合 **Java 微服务 + Go 分布式调度 + Python AI Agent** 三语言协同架构。为了解决复杂计算逻辑与高并发事务流转的耦合，系统整体演进为 **五大智能体（Agent）架构**（用户服务、风控、定价、合约、贷后），覆盖从用户注册、授信评估、贷款申请、合同签署、分期还款到贷后风控的完整信贷业务生命周期。
 
 系统以 **AI 驱动的智能风控决策** 为核心差异化能力 —— 内置的 Data Agent 通过 ReAct 推理模式，自主调用 RAG 知识库检索、NL2SQL 历史数据查询和 NL2API 外部征信接口，最终由大模型进行综合裁决，输出结构化的授信建议。
 
@@ -207,12 +207,19 @@ CrediFlow/
 
 ## 🌟 核心特性
 
+### 🤖 五大智能体架构与全链路追踪 (Agent-Oriented Architecture)
+
+打破传统的 CRUD 大泥球设计，系统将信贷领域划分为 5 大高度自治的智能体：
+- **Java 端** 负责重资金流与状态机的 **用户 Agent**、**合约 Agent** 和 **贷后 Agent**。
+- **Python 端** 负责规则运算密集的 **风控 Agent** 与 **定价 Agent**。
+通过统一的 Go APISIX 网关进行解耦，所有跨栈调用（Java -> Python）基于严格的 REST 契约，并由底层统一注入 `X-Trace-Id` 与 `X-Agent-Source` 实现跨语言的分布式链路追踪。
+
 ### 🔄 信贷全生命周期
 
-覆盖完整的小额信贷业务链路，每个环节均为独立微服务：
+覆盖完整的小额信贷业务链路，各智能体协同流转：
 
 ```
-用户注册 → 实名认证 → 授信评估 → 贷款申请 → 合同签署 → 放款 → 分期还款 → 贷后管理
+用户进件(用户 Agent) → 审批(风控 Agent) → 动态定价(定价 Agent) → 合同签署(合约 Agent) → 放还款管理(贷后 Agent)
 ```
 
 ### 🤖 AI 智能风控（ReAct 四步决策）与状态机流转
@@ -329,6 +336,8 @@ curl -X POST http://localhost:8000/api/v1/knowledge/ingest \
 | [`docs/observability-metrics.md`](docs/observability-metrics.md) | 可观测性指标定义 |
 | [`docs/db-access.md`](docs/db-access.md) | 数据库访问规范 |
 | [`docs/milvus-strategy.md`](docs/milvus-strategy.md) | Milvus 向量库策略 |
+| [`docs/agent-architecture.md`](docs/agent-architecture.md) | 五大智能体架构与边界说明 |
+| [`docs/agent-rpc-contract.md`](docs/agent-rpc-contract.md) | Agent 跨语言 RPC 通信规范 |
 | [`infra/apisix/`](infra/apisix/) | APISIX 路由与插件配置 |
 
 ## 🤝 贡献指南
