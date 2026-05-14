@@ -60,4 +60,18 @@ public class CreditAdminController {
         creditService.manualApprove(id, remark);
         return Result.success(null);
     }
+    
+    @Autowired
+    private com.crediflow.credit.mapper.CreditReviewQueueMapper creditReviewQueueMapper;
+
+    @GetMapping("/manual-review-queue")
+    public Result<Page<com.crediflow.credit.entity.CreditReviewQueue>> listReviewQueue(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "10") long size) {
+        Page<com.crediflow.credit.entity.CreditReviewQueue> page = new Page<>(current, size);
+        LambdaQueryWrapper<com.crediflow.credit.entity.CreditReviewQueue> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.crediflow.credit.entity.CreditReviewQueue::getStatus, "PENDING")
+               .orderByAsc(com.crediflow.credit.entity.CreditReviewQueue::getCreatedAt);
+        return Result.success(creditReviewQueueMapper.selectPage(page, wrapper));
+    }
 }

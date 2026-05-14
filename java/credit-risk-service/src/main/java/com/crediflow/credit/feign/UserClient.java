@@ -20,4 +20,16 @@ public interface UserClient {
      */
     @GetMapping("/api/internal/user/eligibility")
     Result<Map<String, Object>> getEligibility(@RequestParam("userId") Long userId);
+    
+    /**
+     * 发起二次人脸核验请求
+     * @param userId 用户ID
+     * @param bizScene 业务场景，如 CREDIT_SECONDARY_FACE
+     * @param callbackUrl 回调URL
+     * @return 业务流水号或token
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/api/internal/user/face/init")
+    Result<String> initFaceLiveness(@RequestParam("userId") Long userId, 
+                                    @RequestParam("bizScene") String bizScene,
+                                    @RequestParam("callbackUrl") String callbackUrl);
 }

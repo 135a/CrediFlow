@@ -15,8 +15,9 @@ public class LoanContract {
     private String contractNo;
     private Long applicationId;
     private Long userId;
+    private String contractType; // CREDIT_CONTRACT or LOAN_CONTRACT
     private String contractUrl;
-    private String status;
+    private String status; // INIT, SIGNED, EXPIRED
     private Date createdAt;
     private Date updatedAt;
 }

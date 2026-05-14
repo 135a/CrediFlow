@@ -18,4 +18,15 @@ public interface MqConstants {
     /** user-service：KYC v2（实名+实人）通过后投递。 */
     String TOPIC_KYC_PASSED = "KYC_PASSED_TOPIC";
     String TAG_KYC_PASSED = "KYC_PASSED_EVENT";
+
+    // ── 授信生命周期 Credit Lifecycle ──
+    String TOPIC_CREDIT_LIFECYCLE = "credit-lifecycle-topic";
+    String TAG_CREDIT_APPROVED = "CREDIT_APPROVED_EVENT";
+    String TAG_CREDIT_REJECTED = "CREDIT_REJECTED_EVENT";
+    String TAG_CREDIT_MANUAL_REVIEW = "CREDIT_MANUAL_REVIEW_EVENT";
+    String TAG_CREDIT_REVIEW_DECIDED = "CREDIT_REVIEW_DECIDED_EVENT";
+
+    // ── 对话意图风控升级 Chat Intent Risk Escalation ──
+    String TOPIC_CREDIT_CHAT_RISK = "credit-chat-risk-topic";
+    String TAG_CHAT_RISK_ESCALATION = "CHAT_RISK_ESCALATION_EVENT";
 }

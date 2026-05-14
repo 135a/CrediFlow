@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.crediflow.application.feign.UserClient;
+import com.crediflow.application.feign.ContractClient;
 
 @Service
 public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMapper, LoanApplication> implements LoanApplicationService {
@@ -26,6 +27,9 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
 
     @Autowired
     private UserClient userClient;
+    
+    @Autowired
+    private ContractClient contractClient;
 
     @Override
     @com.crediflow.common.annotation.Idempotent(key = "'LOAN_APP:' + #idmpToken")
@@ -59,6 +63,17 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
 
         if (applyAmount.compareTo(availableAmount) > 0) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "申请金额超过可用额度");
+        }
+
+        // 2.5 授信合同前置：必须已经签订授信合同
+        Result<Map<String, Object>> contractResult = contractClient.getCreditContractStatus(userId);
+        if (contractResult == null || contractResult.getCode() != 200 || contractResult.getData() == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "无法获取授信合同状态");
+        }
+        
+        String contractStatus = (String) contractResult.getData().get("status");
+        if (!"SIGNED".equals(contractStatus)) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "必须先签署授信协议才能借款");
         }
 
         // 3. 状态机：创建申请单 (PENDING)

@@ -13,13 +13,14 @@ import java.util.UUID;
 public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, LoanContract> implements LoanContractService {
 
     @Override
-    public void generateContract(Long applicationId, Long userId) {
+    public void generateContract(Long applicationId, Long userId, String contractType) {
         LoanContract contract = new LoanContract();
         contract.setContractNo("CTR" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
         contract.setApplicationId(applicationId);
         contract.setUserId(userId);
-        contract.setStatus("GENERATED");
-        contract.setContractUrl("https://oss.crediflow.com/contracts/" + contract.getContractNo() + ".pdf");
+        contract.setContractType(contractType);
+        contract.setStatus("INIT"); // 初始生成，等待签署
+        contract.setContractUrl("https://oss.crediflow.com/contracts/" + contractType + "/" + contract.getContractNo() + ".pdf");
         contract.setCreatedAt(new Date());
         contract.setUpdatedAt(new Date());
         this.save(contract);
@@ -30,7 +31,24 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         if (!agreed) {
             throw new RuntimeException("必须同意协议才能签约");
         }
-        generateContract(applicationId, userId);
+        
+        // Find existing INIT contract
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<LoanContract> query = 
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        query.eq(LoanContract::getApplicationId, applicationId)
+             .eq(LoanContract::getUserId, userId)
+             .eq(LoanContract::getStatus, "INIT")
+             .last("LIMIT 1");
+             
+        LoanContract contract = this.getOne(query);
+        if (contract == null) {
+            generateContract(applicationId, userId, "LOAN_CONTRACT");
+        } else {
+            contract.setStatus("SIGNED");
+            contract.setUpdatedAt(new Date());
+            this.updateById(contract);
+        }
+        
         java.util.Map<String, Object> map = new java.util.HashMap<>();
         map.put("status", "SUCCESS");
         return map;

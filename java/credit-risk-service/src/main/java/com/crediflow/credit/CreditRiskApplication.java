@@ -8,6 +8,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication(scanBasePackages = "com.crediflow")
 @EnableDiscoveryClient
 @EnableFeignClients
+@org.springframework.scheduling.annotation.EnableAsync
 public class CreditRiskApplication {
     public static void main(String[] args) {
         SpringApplication.run(CreditRiskApplication.class, args);

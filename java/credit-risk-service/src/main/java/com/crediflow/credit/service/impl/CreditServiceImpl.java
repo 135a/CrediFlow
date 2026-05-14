@@ -17,7 +17,19 @@ import java.util.Date;
 import java.util.Map;
 
 import com.crediflow.credit.feign.UserClient;
+import com.crediflow.credit.service.rules.HardRuleEngine;
+import com.crediflow.credit.service.rules.HardRuleResult;
+import com.crediflow.credit.service.scoring.CreditScoringEngine;
+import com.crediflow.credit.service.scoring.ScoreDetail;
+import com.crediflow.credit.entity.CreditScore;
+import com.crediflow.credit.mapper.CreditScoreMapper;
+import com.crediflow.credit.entity.UserCreditQuota;
+import com.crediflow.credit.mapper.UserCreditQuotaMapper;
+import org.springframework.beans.factory.annotation.Value;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditResult> implements CreditService {
 
@@ -29,6 +41,21 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
 
     @Autowired
     private com.crediflow.credit.service.CreditApplicationService creditApplicationService;
+
+    @Autowired
+    private HardRuleEngine hardRuleEngine;
+
+    @Autowired
+    private CreditScoringEngine creditScoringEngine;
+
+    @Autowired
+    private CreditScoreMapper creditScoreMapper;
+    
+    @Autowired
+    private UserCreditQuotaMapper userCreditQuotaMapper;
+
+    @Value("${crediflow.credit.app-url:http://localhost:8080}")
+    private String appUrl;
 
     @Override
     public com.crediflow.credit.entity.CreditApplication applyCredit(Long userId) {
@@ -61,61 +88,81 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "用户已存在有效授信，无需重复申请");
         }
 
-        // 2. 先插入 PENDING 状态的申请记录
+        // 2. 初始化申请单
         com.crediflow.credit.entity.CreditApplication application = new com.crediflow.credit.entity.CreditApplication();
         application.setUserId(userId);
-        application.setApplyAmount(new BigDecimal("5000.00")); // 默认请求额度
-        application.setStatus("PENDING");
+        application.setApplyAmount(new BigDecimal("5000.00")); // 占位额度
+        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_HARD_RULES);
         application.setCreatedAt(new Date());
         application.setUpdatedAt(new Date());
         creditApplicationService.save(application);
 
-        // 3. 构造风控数据，调用大模型 Agent（或降级）
-        // 传递 KYC 的真实年龄、月收入等给 Agent
-        try {
-            Map<String, Object> userData = Map.of(
-                "userId", userId,
-                "action", "evaluate",
-                "age", kycData.get("age") != null ? kycData.get("age") : 22,
-                "income", kycData.get("monthlyIncome") != null ? kycData.get("monthlyIncome") : 5000,
-                "occupation", kycData.get("occupation") != null ? kycData.get("occupation") : "UNKNOWN"
-            );
-            Map<String, Object> riskResult = agentClient.evaluateRisk(userData);
-
-            String agentStatus = riskResult.get("status") != null ? riskResult.get("status").toString() : "UNKNOWN";
-            String reason = riskResult.get("reason") != null ? riskResult.get("reason").toString() : "";
-
-            if ("REJECT".equals(agentStatus)) {
-                application.setStatus("REJECTED");
-                application.setAuditReason(reason);
-                application.setUpdatedAt(new Date());
-                creditApplicationService.updateById(application);
-            } else {
-                BigDecimal suggestedAmount = riskResult.get("suggestedAmount") != null 
-                        ? new BigDecimal(riskResult.get("suggestedAmount").toString()) 
-                        : new BigDecimal("5000.00");
-                
-                application.setStatus("APPROVED");
-                application.setSuggestedAmount(suggestedAmount);
-                application.setAuditReason(reason);
-                application.setUpdatedAt(new Date());
-                creditApplicationService.updateById(application);
-
-                // 生成最终额度
-                CreditResult result = new CreditResult();
-                result.setUserId(userId);
-                result.setCreditAmount(suggestedAmount);
-                result.setUsedAmount(BigDecimal.ZERO);
-                result.setStatus("ACTIVE");
-                result.setExpireTime(new Date(System.currentTimeMillis() + 30L * 24 * 3600 * 1000));
-                result.setCreatedAt(new Date());
-                result.setUpdatedAt(new Date());
-                this.save(result);
+        // 3. 执行硬规则 (Phase 1.1)
+        HardRuleResult hardRuleResult = hardRuleEngine.evaluate(userId);
+        if (!hardRuleResult.isPassed()) {
+            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_REJECTED);
+            application.setAuditReason(hardRuleResult.getRejectCode() + ": " + hardRuleResult.getAuditDetail());
+            
+            try {
+                // 7.2 Async or sync call to Agent for insight
+                Map<String, Object> req = Map.of("ruleSummaries", java.util.List.of(hardRuleResult.getRejectCode()));
+                Map<String, Object> insight = agentClient.creditRejectionInsight(req);
+                application.setRiskInsight((String) insight.get("adminInsight"));
+                application.setUserSafeInsight((String) insight.get("userSafeInsight"));
+            } catch (Exception e) {
+                log.error("Failed to fetch rejection insight from Agent", e);
+                application.setUserSafeInsight("综合评估未通过，请保持良好信用记录后重试");
             }
-        } catch (Exception e) {
-            // Agent调用失败，保持 PENDING 状态，记录错误信息以便排查
-            application.setAuditReason("风控评估异常: " + e.getMessage());
+            
+            application.setUpdatedAt(new Date());
             creditApplicationService.updateById(application);
+            return application;
+        }
+
+        // 4. 执行评分 (Phase 1.2 & 1.3)
+        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_SCORING);
+        creditApplicationService.updateById(application);
+        
+        ScoreDetail scoreDetail = creditScoringEngine.calculateScore(userId);
+        
+        // 落库 cf_credit_score (Phase 1.4)
+        CreditScore scoreRecord = new CreditScore();
+        scoreRecord.setApplicationId(String.valueOf(application.getId()));
+        scoreRecord.setS1Score(scoreDetail.getS1Score());
+        scoreRecord.setS2Score(scoreDetail.getS2Score());
+        scoreRecord.setS3Score(scoreDetail.getS3Score());
+        scoreRecord.setS4Score(scoreDetail.getS4Score());
+        scoreRecord.setTotalScore(scoreDetail.getTotalScore());
+        scoreRecord.setRiskLevel(scoreDetail.getRiskLevel());
+        scoreRecord.setRulesVersion(scoreDetail.getRulesVersion());
+        scoreRecord.setCreatedAt(new Date());
+        scoreRecord.setUpdatedAt(new Date());
+        creditScoreMapper.insert(scoreRecord);
+
+        application.setModelRiskLevel(scoreDetail.getRiskLevel());
+
+        // 5. 确定性路由 (Phase 2.3)
+        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_ROUTING);
+        creditApplicationService.updateById(application);
+        
+        if ("LOW".equals(scoreDetail.getRiskLevel())) {
+            // 低风险直过
+            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_APPROVED);
+            application.setSecondaryFaceRequired(false);
+            application.setUpdatedAt(new Date());
+            creditApplicationService.updateById(application);
+            
+            generateUserQuota(userId, scoreDetail.getTotalScore());
+        } else {
+            // 中风险/高风险，强制二次人脸
+            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_SECONDARY_FACE);
+            application.setSecondaryFaceRequired(true);
+            application.setUpdatedAt(new Date());
+            creditApplicationService.updateById(application);
+            
+            // 调用 user-service 发起二次人脸
+            String callbackUrl = appUrl + "/api/internal/credit/face/callback";
+            userClient.initFaceLiveness(userId, "CREDIT_SECONDARY_FACE", callbackUrl);
         }
 
         return application;
@@ -156,5 +203,32 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         result.setCreatedAt(new Date());
         result.setUpdatedAt(new Date());
         this.save(result);
+    }
+    
+    @Override
+    public void generateUserQuota(Long userId, double totalScore) {
+        // 额度线性公式：UserQuota = MinQuota + (clamp(TotalScore, 60, 100) - 60) / 40 * (MaxQuota - MinQuota)
+        BigDecimal minQuota = new BigDecimal("1000.00");
+        BigDecimal maxQuota = new BigDecimal("50000.00");
+        
+        double clampedScore = Math.max(60, Math.min(100, totalScore));
+        double factor = (clampedScore - 60.0) / 40.0;
+        
+        BigDecimal diff = maxQuota.subtract(minQuota);
+        BigDecimal addAmount = diff.multiply(BigDecimal.valueOf(factor));
+        BigDecimal finalQuota = minQuota.add(addAmount).setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // 写入循环额度账户表 cf_user_credit_quota
+        UserCreditQuota quota = new UserCreditQuota();
+        quota.setUserId(userId);
+        quota.setTotalAmount(finalQuota);
+        quota.setAvailableAmount(finalQuota);
+        quota.setUsedAmount(BigDecimal.ZERO);
+        quota.setFrozenAmount(BigDecimal.ZERO);
+        quota.setVersion(0);
+        quota.setCreatedAt(new Date());
+        quota.setUpdatedAt(new Date());
+        
+        userCreditQuotaMapper.insert(quota);
     }
 }

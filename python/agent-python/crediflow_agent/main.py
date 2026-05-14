@@ -44,5 +44,89 @@ def rag_ask(query: dict):
         "sources": ["规则文档_V1.pdf", "逾期罚金表.docx"]
     }
 
+@app.post("/manual_review_assistant")
+def manual_review_assistant(data: dict):
+    # Mock AI Agent analyzing user data and outputting the "Three-piece set" for manual review
+    user_id = data.get("userId")
+    score_detail = data.get("scoreDetail", {})
+    
+    total_score = score_detail.get("totalScore", 50)
+    risk_level = score_detail.get("riskLevel", "HIGH")
+    
+    # Generate risk details
+    risk_details = [
+        "近期多头借贷频繁，命中外部多头借贷黑名单",
+        "常用设备发生异常变更（跨省登录）",
+        f"模型评分过低 ({total_score}分)，历史违约倾向较高"
+    ]
+    
+    # Calculate probabilities
+    default_prob = round(1.0 - (total_score / 100.0), 2)
+    fraud_prob = 0.35 if "HIGH" in risk_level else 0.10
+    
+    # Suggestion logic (MUST be one of: 建议放行, 建议降额, 建议拒绝, 建议限制期数)
+    if default_prob > 0.6:
+        suggestion = "建议拒绝"
+    elif fraud_prob > 0.3:
+        suggestion = "建议降额"
+    else:
+        suggestion = "建议限制期数"
+        
+    return {
+        "riskDetails": risk_details,
+        "defaultProbability": default_prob,
+        "fraudProbability": fraud_prob,
+        "suggestion": suggestion
+    }
+
+import requests
+
+@app.post("/chat_intent_risk")
+def chat_intent_risk(data: dict):
+    # Mock LLM intent identification
+    user_id = data.get("userId")
+    chat_logs = data.get("chatLogs", [])
+    
+    # Simple keyword mock logic
+    chat_text = " ".join(chat_logs)
+    if "没钱" in chat_text or "不想还" in chat_text or "投诉" in chat_text:
+        signal = {
+            "userId": user_id,
+            "relevantChatLogs": chat_logs,
+            "agentSuggestions": "用户表达强烈的反催收/拒还意愿，建议重点标记并人工复核额度或风控降级。",
+            "riskType": "INTENT_EVASION"
+        }
+        
+        # Post directly to credit-risk-service (6.2)
+        try:
+            requests.post("http://localhost:8080/api/internal/credit/risk-signal/escalate", json=signal)
+        except Exception as e:
+            print(f"Failed to push risk signal: {e}")
+            
+        return {"hasRisk": True, "signal": signal}
+        
+    return {"hasRisk": False}
+
+@app.post("/credit_rejection_insight")
+def credit_rejection_insight(data: dict):
+    # Mock LLM insight generator
+    rule_summaries = data.get("ruleSummaries", [])
+    
+    # Simple logic
+    if "MULTIPLE_LOAN_BLACKLIST" in rule_summaries:
+        user_safe_insight = "综合评估未通过，请保持良好信用记录后重试"
+        admin_insight = "命中外部多头借贷黑名单，具有高违约风险。"
+        actionable_advice = "建议拒绝，不提供申诉通道。"
+    else:
+        user_safe_insight = "由于您近期的风险评分波动，暂时无法为您提供额度"
+        admin_insight = f"内部评分不足或模型拒件，原因：{rule_summaries}"
+        actionable_advice = "建议三个月后再试"
+        
+    return {
+        "userSafeInsight": user_safe_insight,
+        "adminInsight": admin_insight,
+        "actionableAdvice": actionable_advice
+    }
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
