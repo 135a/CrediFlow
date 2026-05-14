@@ -20,7 +20,10 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         contract.setUserId(userId);
         contract.setContractType(contractType);
         contract.setStatus("INIT"); // 初始生成，等待签署
+        
+        // TODO: 后续接入 Python 服务渲染 PDF 模板，并存储至 OSS
         contract.setContractUrl("https://oss.crediflow.com/contracts/" + contractType + "/" + contract.getContractNo() + ".pdf");
+        
         contract.setCreatedAt(new Date());
         contract.setUpdatedAt(new Date());
         this.save(contract);
@@ -32,24 +35,37 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
             throw new RuntimeException("必须同意协议才能签约");
         }
         
-        // Find existing INIT contract
+        // Find existing contract
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<LoanContract> query = 
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         query.eq(LoanContract::getApplicationId, applicationId)
              .eq(LoanContract::getUserId, userId)
-             .eq(LoanContract::getStatus, "INIT")
              .last("LIMIT 1");
              
         LoanContract contract = this.getOne(query);
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        
+        if (contract != null && "SIGNED".equals(contract.getStatus())) {
+            // Already signed, return success directly (idempotent)
+            map.put("status", "SUCCESS");
+            map.put("message", "Contract already signed");
+            return map;
+        }
+
         if (contract == null) {
             generateContract(applicationId, userId, "LOAN_CONTRACT");
-        } else {
-            contract.setStatus("SIGNED");
-            contract.setUpdatedAt(new Date());
-            this.updateById(contract);
+            // Fetch newly generated contract
+            contract = this.getOne(query);
         }
         
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        // TODO: 此处为同步模拟，后续将替换为：前端跳电子签 SDK -> 后端接收三方签章异步回调更新 SIGNED 状态
+        contract.setStatus("SIGNED");
+        contract.setUpdatedAt(new Date());
+        this.updateById(contract);
+        
+        // 合同签署完毕，立刻生成借据和还款计划
+        this.generateReceiptAndPlan(applicationId, userId, amount, term);
+        
         map.put("status", "SUCCESS");
         return map;
     }
@@ -57,6 +73,7 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
     @Override
     public java.util.Map<String, Object> getContractLink(Long userId, Long applicationId) {
         java.util.Map<String, Object> map = new java.util.HashMap<>();
+        // TODO: 后续替换为从 OSS 获取真实的合同下载链接或预览 Token
         map.put("link", "https://oss.crediflow.com/contracts/dummy.pdf");
         return map;
     }
