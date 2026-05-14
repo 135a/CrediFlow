@@ -52,5 +52,44 @@ def test_qwen_api():
     except Exception as e:
         print(f"❌ 发生其他异常: {str(e)}")
 
+def test_zhipu_api():
+    ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY", "")
+    if not ZHIPU_API_KEY:
+        print("\n⚠️ 未配置环境变量 ZHIPU_API_KEY，跳过智谱 API 测试。")
+        print("提示：可以通过 set ZHIPU_API_KEY=xxx 来配置并测试。")
+        return
+        
+    ZHIPU_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+    print(f"\n正在测试智谱 API 连接...")
+    print(f"使用的 API_KEY: {ZHIPU_API_KEY[:6]}...{ZHIPU_API_KEY[-4:] if len(ZHIPU_API_KEY)>10 else ''}")
+    print(f"请求地址: {ZHIPU_URL}")
+    print("-" * 50)
+    
+    headers = {
+        "Authorization": f"Bearer {ZHIPU_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "model": "embedding-2",
+        "input": "测试智谱连通性"
+    }
+    
+    start_time = time.time()
+    try:
+        response = requests.post(ZHIPU_URL, headers=headers, json=data, timeout=15)
+        elapsed_time = time.time() - start_time
+        
+        print(f"耗时: {elapsed_time:.2f} 秒")
+        print(f"HTTP 状态码: {response.status_code}")
+        
+        if response.status_code == 200:
+            print("✅ 成功！网络连接正常，且 API Key 有效。")
+        else:
+            print("❌ 失败！错误信息:", response.text)
+    except Exception as e:
+        print(f"❌ 发生异常: {str(e)}")
+
 if __name__ == "__main__":
     test_qwen_api()
+    test_zhipu_api()
