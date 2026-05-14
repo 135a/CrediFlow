@@ -2,21 +2,37 @@ from fastapi import FastAPI, Request
 import uvicorn
 import logging
 
+# 导入日志模块并配置基本设置，设置日志级别为INFO
 logging.basicConfig(level=logging.INFO)
+# 创建一个名为"crediflow_agent"的日志记录器实例
 logger = logging.getLogger("crediflow_agent")
 
+# 创建一个FastAPI应用实例
 app = FastAPI()
 
-@app.middleware("http")
+@app.middleware("http")  # 使用 FastAPI 的 http 装饰器注册中间件
 async def trace_id_middleware(request: Request, call_next):
+    """
+    这是一个 HTTP 中间件，用于处理请求和响应中的 trace_id。
+    trace_id 用于跟踪请求的完整调用链，便于分布式系统中的问题排查。
+    参数:
+        request: FastAPI 的 Request 对象，表示当前的 HTTP 请求
+        call_next: 一个 callable 对象，表示请求处理链中的下一个中间件或路由处理器
+    返回:
+        Response: 处理请求后的响应对象，会根据情况添加 trace_id 头部
+    """
+    # 从请求头中获取 trace_id
     trace_id = request.headers.get("X-Trace-Id")
+    # 如果请求头中包含 trace_id，则记录日志
     if trace_id:
         logger.info(f"Received request with X-Trace-Id: {trace_id}")
     else:
         # TODO:后续在无 trace_id 时生成本地 trace_id
         logger.info("Received request without X-Trace-Id")
     
+    # 将请求传递给下一个中间件或路由处理器
     response = await call_next(request)
+    # 如果请求头中有 trace_id，则在响应头中也添加相同的 trace_id
     if trace_id:
         response.headers["X-Trace-Id"] = trace_id
     return response

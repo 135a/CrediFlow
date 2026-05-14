@@ -20,6 +20,10 @@ public class Result<T> {
         return success(null);
     }
 
+    public static <T> Result<T> error(Integer code, String message) {
+        return error(code, message, null);
+    }
+
     public static <T> Result<T> error(Integer code, String message, String traceId) {
         Result<T> result = new Result<>();
         result.code = code;

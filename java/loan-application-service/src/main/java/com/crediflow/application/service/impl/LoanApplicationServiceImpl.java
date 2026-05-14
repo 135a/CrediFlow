@@ -105,12 +105,22 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, evalResult != null ? evalResult.getMessage() : "风控评估失败");
         }
         
-        String riskLevel = evalResult.getData(); // LOW, MEDIUM, HIGH, REJECTED
+        String riskLevel = evalResult.getData(); // LOW, MEDIUM, HIGH, MANUAL_REVIEW, REJECTED
         application.setRiskLevel(riskLevel);
         if ("REJECTED".equals(riskLevel)) {
             application.setStatus("REJECTED");
             this.updateById(application);
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "风控拦截，暂不符合借款条件");
+        } else if ("MANUAL_REVIEW".equals(riskLevel)) {
+            application.setStatus("PENDING_MANUAL_REVIEW");
+            this.updateById(application);
+            // 触发入队进行人工审核
+            Map<String, Object> enqueueReq = new java.util.HashMap<>();
+            enqueueReq.put("applicationId", application.getId());
+            enqueueReq.put("userId", userId);
+            enqueueReq.put("sceneType", "LOAN");
+            creditClient.enqueueLoanReview(enqueueReq);
+            return application;
         } else if ("LOW".equals(riskLevel)) {
             // 低风险，直接进入合同处理
             application.setStatus("CONTRACT_PROCESSING");
@@ -118,7 +128,7 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
             // 触发放款流程
             this.approve(application.getId());
         } else if ("MEDIUM".equals(riskLevel) || "HIGH".equals(riskLevel)) {
-            // 中高风险，进入人脸识别环节
+            // 中风险，进入人脸识别环节
             application.setStatus("PENDING_FACE");
             this.updateById(application);
         }
@@ -133,7 +143,7 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     @org.springframework.transaction.annotation.Transactional
     public void approve(Long applicationId) {
         LoanApplication application = this.getById(applicationId);
-        if (!"PENDING".equals(application.getStatus())) {
+        if (!"PENDING".equals(application.getStatus()) && !"PENDING_RISK".equals(application.getStatus()) && !"PENDING_MANUAL_REVIEW".equals(application.getStatus())) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "申请单状态非法，无法通过");
         }
         // 根据规范，状态置为“处理中（生成合同阶段）”
@@ -167,7 +177,7 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
     @Override
     public void reject(Long applicationId, String reason) {
         LoanApplication application = this.getById(applicationId);
-        if (!"PENDING".equals(application.getStatus())) {
+        if (!"PENDING".equals(application.getStatus()) && !"PENDING_RISK".equals(application.getStatus()) && !"PENDING_MANUAL_REVIEW".equals(application.getStatus())) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "申请单状态非法，无法拒绝");
         }
         application.setStatus("REJECTED");

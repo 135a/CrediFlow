@@ -15,7 +15,7 @@
 3. **授信已通过**：存在有效授信（与 `credit-risk-service` 协作的内部查询契约）
 4. **借款期数合法**：入参中的 `term` MUST 是被允许的枚举值集合（3、6、12）之一
 
-任一未满足 MUST 在受理前拦截。该前置校验 MUST 通过 `microservice-user` 的内部接口（如 `/api/internal/user/eligibility`）与授信服务的内部接口完成查询，MUST NOT 跨服务直接读表。系统 MUST 维护申请状态机（至少包含：草稿/已提交/审核中/通过/拒绝/取消）；状态迁移 MUST 合法且可审计。
+任一未满足 MUST 在受理前拦截。该前置校验 MUST 通过 `microservice-user` 的内部接口（如 `/api/internal/user/eligibility`）与授信服务的内部接口完成查询，MUST NOT 跨服务直接读表。系统 MUST 维护申请状态机（至少包含：草稿/已提交/审核中/待人工审核/通过/拒绝/取消）；状态迁移 MUST 合法且可审计。特别是当风控引擎返回需人工复核时，状态 MUST 从审核中流转到待人工审核 (`PENDING_MANUAL_REVIEW`)。
 
 旧的「`step_status=3` 即视为 KYC 通过」语义 MUST 被废弃；过渡期内若 `crediflow.kyc.use-v2=true`（默认 true），MUST 仅以 `kyc_passed=1` 为准。
 
@@ -38,6 +38,11 @@
 
 - **WHEN** 用户调用借款接口，传入 `term=4`
 - **THEN** 系统 MUST 拒绝受理，并返回明确的期数不合法提示
+
+#### Scenario: 触发人工审核流转
+
+- **WHEN** 风控服务判定当前贷款申请处于疑似风险区间并返回 `MANUAL_REVIEW`
+- **THEN** 贷款申请服务 MUST 将该申请单状态从“审核中”更新为“待人工审核 (`PENDING_MANUAL_REVIEW`)”，并阻断自动放款流程
 
 ### Requirement: 资料审核与资格校验
 

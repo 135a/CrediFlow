@@ -17,9 +17,12 @@ public class LoanApplication {
     private Long userId;
     private BigDecimal applyAmount;
     private Integer term;
-    private String status; // INIT, PENDING_RISK, PENDING_FACE, PENDING_MANUAL, APPROVED, REJECTED
+    private String status; // INIT, PENDING_RISK, PENDING_FACE, PENDING_MANUAL_REVIEW, APPROVED, REJECTED
     private String riskLevel; // LOW, MEDIUM, HIGH
     private String riskInsight;
+    private Long manualReviewerId;
+    private String manualReviewReason;
+    private Date manualReviewTime;
     private Date createdAt;
     private Date updatedAt;
 }

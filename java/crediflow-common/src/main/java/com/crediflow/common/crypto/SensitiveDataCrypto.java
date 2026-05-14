@@ -13,16 +13,27 @@ import java.util.Base64;
  */
 public final class SensitiveDataCrypto {
 
+    // 环境变量名称，用于存储AES-256密钥
     public static final String ENV_KEY = "CREDIFLOW_AES256_KEY";
 
+    // AES算法名称
     private static final String AES = "AES";
+    // AES-GCM加密模式，不填充
     private static final String AES_GCM_NO_PADDING = "AES/GCM/NoPadding";
+    // GCM模式下的IV长度（字节）
     private static final int GCM_IV_LENGTH = 12;
+    // GCM模式下的认证标签长度（位）
     private static final int GCM_TAG_LENGTH = 128;
+    // 用于生成随机IV的SecureRandom实例
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    // 加密密钥
     private final SecretKey secretKey;
 
+    /**
+     * 构造函数，初始化AES-256密钥
+     * @param rawKey32 32字节的原始密钥
+     */
     public SensitiveDataCrypto(byte[] rawKey32) {
         if (rawKey32 == null || rawKey32.length != 32) {
             throw new IllegalArgumentException("AES-256 key must be 32 bytes");

@@ -7,35 +7,62 @@ import com.crediflow.credit.service.CreditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 信贷控制器类
+ * 提供信贷申请、查询、额度管理等相关功能的REST API接口
+ */
 @RestController
 @RequestMapping("/api/app/credit")
 public class CreditController {
 
+    // 自动注入信贷服务
     @Autowired
     private CreditService creditService;
     
+    // 自动注入信贷申请服务
     @Autowired
     private com.crediflow.credit.service.CreditApplicationService creditApplicationService;
     
+    // 自动注入用户信贷额度数据访问层
     @Autowired
     private com.crediflow.credit.mapper.UserCreditQuotaMapper userCreditQuotaMapper;
 
+    /**
+     * 信贷申请接口
+     * @param userId 用户ID，从请求头中获取
+     * @return 返回申请结果
+     */
     @PostMapping("/apply")
     public Result<com.crediflow.credit.entity.CreditApplication> applyCredit(@RequestHeader("X-User-Id") Long userId) {
         return Result.success(creditService.applyCredit(userId));
     }
 
+    /**
+     * 获取活跃信贷信息接口
+     * @param userId 用户ID，从请求头中获取
+     * @return 返回活跃信贷信息
+     */
     @GetMapping("/active")
     public Result<CreditResult> getActiveCredit(@RequestHeader("X-User-Id") Long userId) {
         return Result.success(creditService.getActiveCredit(userId));
     }
 
+    /**
+     * 内部接口：获取活跃信贷信息
+     * @param userId 用户ID，从请求参数中获取
+     * @return 返回活跃信贷信息
+     */
     @Inner
     @GetMapping("/internal/active")
     public Result<CreditResult> getActiveCreditInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditService.getActiveCredit(userId));
     }
 
+    /**
+     * 内部接口：申请信贷
+     * @param userId 用户ID，从请求参数中获取
+     * @return 返回申请结果，包含申请ID和状态
+     */
     @Inner
     @PostMapping("/internal/apply")
     public Result<java.util.Map<String, Object>> applyCreditInternal(@RequestParam("userId") Long userId) {
@@ -46,9 +73,15 @@ public class CreditController {
         return Result.success(map);
     }
 
+    /**
+     * 内部接口：获取信贷状态
+     * @param userId 用户ID，从请求参数中获取
+     * @return 返回信贷状态信息，包含状态、申请ID和是否需要二次人脸识别
+     */
     @Inner
     @GetMapping("/internal/status")
     public Result<java.util.Map<String, Object>> getCreditStatusInternal(@RequestParam("userId") Long userId) {
+        // 创建查询条件，查询用户最新的信贷申请
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.crediflow.credit.entity.CreditApplication> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         query.eq(com.crediflow.credit.entity.CreditApplication::getUserId, userId)
              .orderByDesc(com.crediflow.credit.entity.CreditApplication::getCreatedAt)
@@ -66,9 +99,15 @@ public class CreditController {
         return Result.success(map);
     }
     
+    /**
+     * 内部接口：获取信贷额度
+     * @param userId 用户ID，从请求参数中获取
+     * @return 返回信贷额度信息，包含总额度、可用额度和已用额度
+     */
     @Inner
     @GetMapping("/internal/quota")
     public Result<java.util.Map<String, Object>> getCreditQuotaInternal(@RequestParam("userId") Long userId) {
+        // 创建查询条件，查询用户最新的信贷额度信息
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.crediflow.credit.entity.UserCreditQuota> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         query.eq(com.crediflow.credit.entity.UserCreditQuota::getUserId, userId)
              .last("LIMIT 1");
@@ -83,9 +122,15 @@ public class CreditController {
         return Result.success(map);
     }
     
+    /**
+     * 内部接口：获取上次审核结果
+     * @param userId 用户ID，从请求参数中获取
+     * @return 返回上次审核结果，包含状态、审核原因和安全洞察
+     */
     @Inner
     @GetMapping("/internal/last-result")
     public Result<java.util.Map<String, Object>> getLastResultInternal(@RequestParam("userId") Long userId) {
+        // 创建查询条件，查询用户最新的信贷申请
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.crediflow.credit.entity.CreditApplication> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         query.eq(com.crediflow.credit.entity.CreditApplication::getUserId, userId)
              .orderByDesc(com.crediflow.credit.entity.CreditApplication::getCreatedAt)
@@ -102,9 +147,15 @@ public class CreditController {
         return Result.success(map);
     }
     
+    // 自动注入信贷审核队列数据访问层
     @Autowired
     private com.crediflow.credit.mapper.CreditReviewQueueMapper creditReviewQueueMapper;
     
+    /**
+     * 内部接口：风险信号升级
+     * @param signalData 包含用户ID、聊天记录、代理建议和风险类型的数据
+     * @return 返回操作结果
+     */
     @Inner
     @PostMapping("/internal/risk-signal/escalate")
     public Result<Void> escalateRiskSignal(@RequestBody java.util.Map<String, Object> signalData) {
@@ -113,6 +164,7 @@ public class CreditController {
         String suggestion = (String) signalData.get("agentSuggestions");
         String riskType = (String) signalData.get("riskType");
         
+        // 创建信贷审核队列记录
         com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
         queue.setUserId(userId);
         
@@ -157,12 +209,17 @@ public class CreditController {
         if (now.getHour() >= 1 && now.getHour() <= 4) {
             boolean highFrequency = false; // mock high frequency
             if (highFrequency) {
-                return Result.success("REJECTED");
+                // 边界风险转人工审核
+                return Result.success("MANUAL_REVIEW");
             }
         }
         
         // 2.3 复用授信四维模型，加载借款专属高门槛阈值
         com.crediflow.credit.service.scoring.ScoreDetail detail = creditScoringEngine.calculateLoanScore(userId);
+        if ("HIGH".equals(detail.getRiskLevel())) {
+            // 高风险单据转人工审核复核，而非直接刚性拒绝
+            return Result.success("MANUAL_REVIEW");
+        }
         
         return Result.success(detail.getRiskLevel());
     }

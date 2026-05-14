@@ -1,13 +1,22 @@
+# 服务器配置
 server:
+  # 服务器端口号
   port: 8090
+# Spring Boot 应用配置
 spring:
+  # 应用名称
   application:
     name: admin-bff-service
+  # Redis 数据库配置
   data:
     redis:
+      # Redis 服务器主机地址，使用环境变量 REDIS_HOST，默认值为 redis
       host: ${REDIS_HOST:redis}
+      # Redis 服务器端口号，使用环境变量 REDIS_PORT，默认值为 6379
       port: ${REDIS_PORT:6379}
+  # Spring Cloud 微服务配置
   cloud:
+    # Nacos 服务发现配置
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER:nacos:8848}
