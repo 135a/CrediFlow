@@ -11,14 +11,23 @@ import lombok.Data;
  */
 @Data
 public class RepaymentSettledEvent {
+    // 事件类型，标识事件的种类
     private String eventType;
+    // 网关请求ID，用于唯一标识一次请求
     private String gatewayRequestId;
+    // 提供商ID，标识资金方或支付渠道提供商
     private String providerId;
+    // 业务订单号，业务系统中的唯一订单标识
     private String businessOrderNo;
+    // 贷款编号，关联具体的贷款产品
     private String loanNo;
+    // 用户ID，标识借款人
     private String userId;
+    // 期数，用于分期还款场景
     private Integer installment;
+    // 金额，交易的具体金额
     private String amount;
+    // 货币类型，如CNY、USD等
     private String currency;
     /** SUCCESS / FAILED */
     private String terminal;

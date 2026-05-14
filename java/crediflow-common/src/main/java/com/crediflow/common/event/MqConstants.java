@@ -23,14 +23,4 @@ public interface MqConstants {
     String TOPIC_KYC_PASSED = "KYC_PASSED_TOPIC";          // KYC认证通过主题
     String TAG_KYC_PASSED = "KYC_PASSED_EVENT";            // KYC认证通过事件标签
 
-    // ── 授信生命周期 Credit Lifecycle ──
-    String TOPIC_CREDIT_LIFECYCLE = "credit-lifecycle-topic";  // 授信生命周期主题
-    String TAG_CREDIT_APPROVED = "CREDIT_APPROVED_EVENT";       // 授信批准事件标签
-    String TAG_CREDIT_REJECTED = "CREDIT_REJECTED_EVENT";       // 授信拒绝事件标签
-    String TAG_CREDIT_MANUAL_REVIEW = "CREDIT_MANUAL_REVIEW_EVENT";  // 授信人工审核事件标签
-    String TAG_CREDIT_REVIEW_DECIDED = "CREDIT_REVIEW_DECIDED_EVENT"; // 授信审核决定事件标签
-
-    // ── 对话意图风控升级 Chat Intent Risk Escalation ──
-    String TOPIC_CREDIT_CHAT_RISK = "credit-chat-risk-topic";  // 授信对话风控主题
-    String TAG_CHAT_RISK_ESCALATION = "CHAT_RISK_ESCALATION_EVENT";  // 对话风险升级事件标签
 }
