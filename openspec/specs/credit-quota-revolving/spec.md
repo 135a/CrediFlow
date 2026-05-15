@@ -41,3 +41,17 @@
 
 - **WHEN** 一笔借款审批通过并生成借据
 - **THEN** 循环额度中心 MUST 从该用户的 `availableAmount` 中实时安全扣减等额的借款本金，并增加 `usedAmount`，保证用户的借款总额不超过总授信额度。
+
+### Requirement: 授信结果状态枚举
+
+表示用户授信额度账户生命周期状态的字段（如 `cf_credit_result.status`）MUST 在应用层使用封闭枚举（如 `CreditResultStatus`：ACTIVE、FROZEN、EXPIRED）表达；查询「当前有效授信」等逻辑 MUST 基于该枚举而非裸字符串字面量。
+
+#### Scenario: 查询有效授信
+
+- **WHEN** 服务查询用户当前可用的授信结果
+- **THEN** MUST 以 `CreditResultStatus.ACTIVE`（或等价编码）作为过滤条件，且与库中存储的字符串编码一致。
+
+#### Scenario: 状态变更可审计
+
+- **WHEN** 授信结果被冻结或过期
+- **THEN** 写入数据库的状态值 MUST 为枚举持久化编码之一，并可通过枚举读回。

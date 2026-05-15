@@ -3,6 +3,7 @@ package com.crediflow.credit.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.crediflow.credit.enums.CreditResultStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -36,11 +37,7 @@ public class CreditResult {
      * 用户已经使用的信贷金额
      */
     private BigDecimal usedAmount;
-    /**
-     * 信贷状态
-     * 枚举值：ACTIVE(激活), FROZEN(冻结), EXPIRED(过期)
-     */
-    private String status; // ACTIVE, FROZEN, EXPIRED
+    private CreditResultStatus status;
     /**
      * 过期时间
      * 信贷额度的失效时间

@@ -6,10 +6,15 @@ import com.crediflow.common.api.user.UserEligibilityResponse;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
+import com.crediflow.credit.dto.LoanReviewEnqueueRequest;
+import com.crediflow.credit.dto.LoanRiskEvaluateRequest;
+import com.crediflow.credit.dto.QuotaSummaryResponse;
+import com.crediflow.credit.dto.RiskSignalEscalateRequest;
 import com.crediflow.credit.entity.CreditApplication;
 import com.crediflow.credit.entity.CreditResult;
 import com.crediflow.credit.entity.CreditReviewQueue;
 import com.crediflow.credit.enums.CreditApplicationStatus;
+import com.crediflow.credit.enums.CreditResultStatus;
 import com.crediflow.credit.enums.ModelRiskLevel;
 import com.crediflow.credit.enums.ReviewQueueStatus;
 import com.crediflow.credit.enums.ReviewSceneType;
@@ -177,7 +182,7 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
     public CreditResult getActiveCredit(Long userId) {
         return this.getOne(new LambdaQueryWrapper<CreditResult>()
                 .eq(CreditResult::getUserId, userId)
-                .eq(CreditResult::getStatus, "ACTIVE")
+                .eq(CreditResult::getStatus, CreditResultStatus.ACTIVE)
                 .gt(CreditResult::getExpireTime, new Date())
                 .last("LIMIT 1"));
     }
@@ -202,7 +207,7 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         result.setUserId(application.getUserId());
         result.setCreditAmount(application.getSuggestedAmount() != null ? application.getSuggestedAmount() : new BigDecimal("5000.00"));
         result.setUsedAmount(BigDecimal.ZERO);
-        result.setStatus("ACTIVE");
+        result.setStatus(CreditResultStatus.ACTIVE);
         result.setExpireTime(new Date(System.currentTimeMillis() + 30L * 24 * 3600 * 1000));
         result.setCreatedAt(new Date());
         result.setUpdatedAt(new Date());
@@ -267,59 +272,55 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
     }
 
     @Override
-    public java.util.Map<String, Object> getQuotaSummary(Long userId) {
+    public QuotaSummaryResponse getQuotaSummary(Long userId) {
         LambdaQueryWrapper<UserCreditQuota> query = new LambdaQueryWrapper<>();
-        query.eq(UserCreditQuota::getUserId, userId)
-             .last("LIMIT 1");
-        
+        query.eq(UserCreditQuota::getUserId, userId).last("LIMIT 1");
+
         UserCreditQuota quota = userCreditQuotaMapper.selectOne(query);
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        QuotaSummaryResponse resp = new QuotaSummaryResponse();
         if (quota != null) {
-            map.put("totalAmount", quota.getTotalAmount());
-            map.put("availableAmount", quota.getAvailableAmount());
-            map.put("usedAmount", quota.getUsedAmount());
+            resp.setTotalAmount(quota.getTotalAmount());
+            resp.setAvailableAmount(quota.getAvailableAmount());
+            resp.setUsedAmount(quota.getUsedAmount());
         }
-        return map;
+        return resp;
     }
 
     @Override
-    public void escalateRiskSignal(java.util.Map<String, Object> signalData) {
-        Long userId = Long.valueOf(signalData.get("userId").toString());
-        java.util.List<String> chatLogs = (java.util.List<String>) signalData.get("relevantChatLogs");
-        String suggestion = (String) signalData.get("agentSuggestions");
-        String riskType = (String) signalData.get("riskType");
-        
-        CreditReviewQueue queue = new CreditReviewQueue();
-        queue.setUserId(userId);
-        
+    public void escalateRiskSignal(RiskSignalEscalateRequest request) {
+        Long userId = request.getUserId();
+
         LambdaQueryWrapper<CreditApplication> query = new LambdaQueryWrapper<>();
         query.eq(CreditApplication::getUserId, userId)
              .orderByDesc(CreditApplication::getCreatedAt)
              .last("LIMIT 1");
         CreditApplication app = creditApplicationService.getOne(query);
-        
+
+        CreditReviewQueue queue = new CreditReviewQueue();
+        queue.setUserId(userId);
         queue.setApplicationId(app != null ? app.getId() : 0L);
         queue.setSceneType(ReviewSceneType.CREDIT);
-        queue.setRiskDetails("[\"对话意图预警：" + riskType + "\", \"相关聊天记录：" + chatLogs.toString() + "\"]");
+        queue.setRiskDetails("[\"对话意图预警：" + request.getRiskType()
+                + "\", \"相关聊天记录：" + request.getRelevantChatLogs() + "\"]");
         queue.setDefaultProbability(0.85);
         queue.setFraudProbability(0.50);
-        queue.setAiSuggestion(suggestion);
+        queue.setAiSuggestion(request.getAgentSuggestions());
         queue.setStatus(ReviewQueueStatus.PENDING);
         queue.setCreatedAt(new Date());
         queue.setUpdatedAt(new Date());
-        
+
         creditReviewQueueMapper.insert(queue);
     }
 
     @Override
-    public String evaluateLoanRisk(java.util.Map<String, Object> req) {
-        Long userId = Long.valueOf(req.get("userId").toString());
-        
+    public String evaluateLoanRisk(LoanRiskEvaluateRequest request) {
+        Long userId = request.getUserId();
+
         boolean hasOverdue = false; // TODO: check actual overdue loans
         if (hasOverdue) {
             return "REJECTED";
         }
-        
+
         java.time.LocalTime now = java.time.LocalTime.now();
         if (now.getHour() >= 1 && now.getHour() <= 4) {
             boolean highFrequency = false; // mock high frequency
@@ -327,32 +328,29 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
                 return "MANUAL_REVIEW";
             }
         }
-        
+
         ScoreDetail detail = creditScoringEngine.calculateLoanScore(userId);
         if ("HIGH".equals(detail.getRiskLevel())) {
             return "MANUAL_REVIEW";
         }
-        
+
         return detail.getRiskLevel();
     }
 
     @Override
-    public void enqueueLoanReview(java.util.Map<String, Object> req) {
-        Long applicationId = Long.valueOf(req.get("applicationId").toString());
-        Long userId = Long.valueOf(req.get("userId").toString());
-        String sceneType = (String) req.getOrDefault("sceneType", "LOAN");
-        
+    public void enqueueLoanReview(LoanReviewEnqueueRequest request) {
         CreditReviewQueue queue = new CreditReviewQueue();
-        queue.setApplicationId(applicationId);
-        queue.setUserId(userId);
-        queue.setSceneType(ReviewSceneType.fromCode(sceneType));
+        queue.setApplicationId(request.getApplicationId());
+        queue.setUserId(request.getUserId());
+        queue.setSceneType(ReviewSceneType.fromCode(request.getSceneType()));
         queue.setStatus(ReviewQueueStatus.PENDING);
         queue.setCreatedAt(new Date());
         queue.setUpdatedAt(new Date());
-        
+
         creditReviewQueueMapper.insert(queue);
-        
-        manualReviewAsyncService.generateManualReviewAssistantWithScene(applicationId, userId, 50.0, "HIGH", sceneType);
+
+        manualReviewAsyncService.generateManualReviewAssistantWithScene(
+                request.getApplicationId(), request.getUserId(), 50.0, "HIGH", request.getSceneType());
     }
 
     @Override

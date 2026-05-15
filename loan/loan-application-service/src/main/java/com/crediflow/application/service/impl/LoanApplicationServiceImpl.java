@@ -5,6 +5,10 @@ import com.crediflow.application.entity.LoanApplication;
 import com.crediflow.application.feign.CreditClient;
 import com.crediflow.application.mapper.LoanApplicationMapper;
 import com.crediflow.application.service.LoanApplicationService;
+import com.crediflow.common.api.credit.CreditResultResponse;
+import com.crediflow.common.api.credit.LoanReviewEnqueueRequest;
+import com.crediflow.common.api.credit.LoanRiskEvaluateRequest;
+import java.util.Map;
 import com.crediflow.common.api.user.UserEligibilityResponse;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
@@ -14,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Date;
-import java.util.Map;
 import java.util.UUID;
 
 import com.crediflow.application.feign.UserClient;
@@ -56,14 +59,14 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         }
 
         // 2. 联合校验：检查有效授信额度
-        Result<Map<String, Object>> creditResult = creditClient.getActiveCreditInternal(userId);
+        Result<CreditResultResponse> creditResult = creditClient.getActiveCreditInternal(userId);
         if (creditResult == null || creditResult.getCode() != 200 || creditResult.getData() == null) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "无有效授信，请先申请额度");
         }
 
-        Map<String, Object> creditData = creditResult.getData();
-        BigDecimal creditAmount = new BigDecimal(creditData.get("creditAmount").toString());
-        BigDecimal usedAmount = new BigDecimal(creditData.get("usedAmount").toString());
+        CreditResultResponse creditData = creditResult.getData();
+        BigDecimal creditAmount = creditData.getCreditAmount();
+        BigDecimal usedAmount = creditData.getUsedAmount();
         BigDecimal availableAmount = creditAmount.subtract(usedAmount);
 
         if (applyAmount.compareTo(availableAmount) > 0) {
@@ -93,11 +96,11 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         this.save(application);
 
         // 4. 同步调用风控评估
-        Map<String, Object> evalReq = new java.util.HashMap<>();
-        evalReq.put("userId", userId);
-        evalReq.put("applicationId", application.getId());
-        evalReq.put("applyAmount", applyAmount);
-        
+        LoanRiskEvaluateRequest evalReq = new LoanRiskEvaluateRequest();
+        evalReq.setUserId(userId);
+        evalReq.setApplicationId(application.getId());
+        evalReq.setApplyAmount(applyAmount);
+
         Result<String> evalResult = creditClient.evaluateLoanRisk(evalReq);
         if (evalResult == null || evalResult.getCode() != 200) {
             application.setStatus("REJECTED"); // 风控拦截或异常直接拒绝
@@ -115,10 +118,10 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
             application.setStatus("PENDING_MANUAL_REVIEW");
             this.updateById(application);
             // 触发入队进行人工审核
-            Map<String, Object> enqueueReq = new java.util.HashMap<>();
-            enqueueReq.put("applicationId", application.getId());
-            enqueueReq.put("userId", userId);
-            enqueueReq.put("sceneType", "LOAN");
+            LoanReviewEnqueueRequest enqueueReq = new LoanReviewEnqueueRequest();
+            enqueueReq.setApplicationId(application.getId());
+            enqueueReq.setUserId(userId);
+            enqueueReq.setSceneType("LOAN");
             creditClient.enqueueLoanReview(enqueueReq);
             return application;
         } else if ("LOW".equals(riskLevel)) {

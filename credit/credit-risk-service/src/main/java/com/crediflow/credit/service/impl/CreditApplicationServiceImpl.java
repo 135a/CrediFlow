@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.crediflow.common.web.Result;
+import com.crediflow.credit.constants.CreditQueryConstants;
+import com.crediflow.credit.dto.CreditApplicationResultView;
+import com.crediflow.credit.dto.CreditApplicationStatusView;
 import com.crediflow.credit.entity.CreditApplication;
 import com.crediflow.credit.feign.UserClient;
 import com.crediflow.credit.mapper.CreditApplicationMapper;
@@ -12,59 +15,59 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
-public class CreditApplicationServiceImpl extends ServiceImpl<CreditApplicationMapper, CreditApplication> implements CreditApplicationService {
+public class CreditApplicationServiceImpl extends ServiceImpl<CreditApplicationMapper, CreditApplication>
+        implements CreditApplicationService {
 
     @Autowired
     private UserClient userClient;
 
     @Override
-    public Map<String, Object> getLastApplicationStatus(Long userId) {
+    public CreditApplicationStatusView getLastApplicationStatus(Long userId) {
         LambdaQueryWrapper<CreditApplication> query = new LambdaQueryWrapper<>();
         query.eq(CreditApplication::getUserId, userId)
              .orderByDesc(CreditApplication::getCreatedAt)
              .last("LIMIT 1");
-             
+
         CreditApplication app = this.getOne(query);
-        Map<String, Object> map = new HashMap<>();
+        CreditApplicationStatusView view = new CreditApplicationStatusView();
         if (app != null) {
-            map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
-            map.put("applicationId", app.getId());
-            map.put("secondaryFaceRequired", app.getSecondaryFaceRequired());
+            view.setStatus(app.getStatus() != null ? app.getStatus().getCode() : null);
+            view.setApplicationId(app.getId());
+            view.setSecondaryFaceRequired(app.getSecondaryFaceRequired());
         } else {
-            map.put("status", "NOT_APPLIED");
+            view.setStatus(CreditQueryConstants.NOT_APPLIED);
         }
-        return map;
+        return view;
     }
 
     @Override
-    public Map<String, Object> getLastApplicationResult(Long userId) {
+    public CreditApplicationResultView getLastApplicationResult(Long userId) {
         LambdaQueryWrapper<CreditApplication> query = new LambdaQueryWrapper<>();
         query.eq(CreditApplication::getUserId, userId)
              .orderByDesc(CreditApplication::getCreatedAt)
              .last("LIMIT 1");
-             
+
         CreditApplication app = this.getOne(query);
-        Map<String, Object> map = new HashMap<>();
+        CreditApplicationResultView view = new CreditApplicationResultView();
         if (app != null) {
-            map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
-            map.put("auditReason", app.getAuditReason());
-            map.put("userSafeInsight", app.getUserSafeInsight() != null ? app.getUserSafeInsight() : "综合评估未通过，请保持良好信用记录后重试"); 
+            view.setStatus(app.getStatus() != null ? app.getStatus().getCode() : null);
+            view.setAuditReason(app.getAuditReason());
+            view.setUserSafeInsight(app.getUserSafeInsight() != null
+                    ? app.getUserSafeInsight()
+                    : "综合评估未通过，请保持良好信用记录后重试");
         }
-        return map;
+        return view;
     }
 
     @Override
     public Page<CreditApplication> listApplications(long current, long size, Date startTime, Date endTime, String phone) {
         LambdaQueryWrapper<CreditApplication> queryWrapper = new LambdaQueryWrapper<>();
-        
+
         if (phone != null && !phone.trim().isEmpty()) {
             Result<Long> userRes = userClient.getUserIdByPhone(phone);
             if (userRes == null || userRes.getData() == null) {
-                // 如果找不到对应的用户，直接返回空分页
                 return new Page<>(current, size);
             }
             queryWrapper.eq(CreditApplication::getUserId, userRes.getData());
@@ -78,7 +81,6 @@ public class CreditApplicationServiceImpl extends ServiceImpl<CreditApplicationM
         }
         queryWrapper.orderByDesc(CreditApplication::getCreatedAt);
 
-        Page<CreditApplication> page = new Page<>(current, size);
-        return this.page(page, queryWrapper);
+        return this.page(new Page<>(current, size), queryWrapper);
     }
 }

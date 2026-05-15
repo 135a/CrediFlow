@@ -8,8 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import com.crediflow.application.feign.CreditClient;
-import java.util.Map;
-import java.util.HashMap;
+import com.crediflow.common.api.credit.LoanReviewEnqueueRequest;
 
 @Slf4j
 @RestController
@@ -43,10 +42,10 @@ public class FaceCallbackController {
                 loanApplicationService.updateById(application);
                 
                 // 3.2 调用风控服务投入人工审核队列
-                Map<String, Object> req = new HashMap<>();
-                req.put("applicationId", application.getId());
-                req.put("userId", application.getUserId());
-                req.put("sceneType", "LOAN");
+                LoanReviewEnqueueRequest req = new LoanReviewEnqueueRequest();
+                req.setApplicationId(application.getId());
+                req.setUserId(application.getUserId());
+                req.setSceneType("LOAN");
                 creditClient.enqueueLoanReview(req);
             } else {
                 application.setStatus("CONTRACT_PROCESSING");

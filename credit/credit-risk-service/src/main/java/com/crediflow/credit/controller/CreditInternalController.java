@@ -1,6 +1,14 @@
 package com.crediflow.credit.controller;
 
 import com.crediflow.common.web.Result;
+import com.crediflow.credit.dto.CreditApplyResponse;
+import com.crediflow.credit.dto.CreditApplicationResultView;
+import com.crediflow.credit.dto.CreditApplicationStatusView;
+import com.crediflow.credit.dto.LoanReviewEnqueueRequest;
+import com.crediflow.credit.dto.LoanRiskEvaluateRequest;
+import com.crediflow.credit.dto.QuotaDeductRequest;
+import com.crediflow.credit.dto.QuotaSummaryResponse;
+import com.crediflow.credit.dto.RiskSignalEscalateRequest;
 import com.crediflow.credit.entity.CreditApplication;
 import com.crediflow.credit.entity.CreditResult;
 import com.crediflow.credit.service.CreditApplicationService;
@@ -8,136 +16,68 @@ import com.crediflow.credit.service.CreditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 /**
- * 内部信贷控制器类
- * 提供微服务间调用的REST API接口，受内网签名隔离保护
+ * 内部信贷接口，仅供微服务间调用，受内网签名隔离保护。
  */
 @RestController
-@RequestMapping("/api/internal/credit")  // 设置REST API的基础路径
+@RequestMapping("/api/internal/credit")
 public class CreditInternalController {
 
-    @Autowired  // 自动注入CreditService服务
+    @Autowired
     private CreditService creditService;
-    
-    @Autowired  // 自动注入CreditApplicationService服务
+
+    @Autowired
     private CreditApplicationService creditApplicationService;
 
-
-
-    /**
-     * 获取用户的激活信贷信息
-     * @param userId 用户ID
-     * @return 返回包含激活信贷信息的Result对象
-     */
-    @GetMapping("/active")  // 处理GET请求，路径为"/active"
+    @GetMapping("/active")
     public Result<CreditResult> getActiveCreditInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditService.getActiveCredit(userId));
     }
 
-
-
-    /**
-     * 申请信贷
-     * @param userId 用户ID
-     * @return 返回包含申请ID和状态的Result对象
-     */
-    @PostMapping("/apply")  // 处理POST请求，路径为"/apply"
-    public Result<Map<String, Object>> applyCreditInternal(@RequestParam("userId") Long userId) {
+    @PostMapping("/apply")
+    public Result<CreditApplyResponse> applyCreditInternal(@RequestParam("userId") Long userId) {
         CreditApplication app = creditService.applyCredit(userId);
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
-        map.put("applicationId", app.getId());  // 存储申请ID
-        map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
-        return Result.success(map);
+        CreditApplyResponse resp = new CreditApplyResponse();
+        resp.setApplicationId(app.getId());
+        resp.setStatus(app.getStatus());
+        return Result.success(resp);
     }
 
-
-
-    /**
-     * 获取信贷申请状态
-     * @param userId 用户ID
-     * @return 返回包含申请状态的Result对象
-     */
-    @GetMapping("/status")  // 处理GET请求，路径为"/status"
-    public Result<Map<String, Object>> getCreditStatusInternal(@RequestParam("userId") Long userId) {
+    @GetMapping("/status")
+    public Result<CreditApplicationStatusView> getCreditStatusInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditApplicationService.getLastApplicationStatus(userId));
     }
-    
 
-
-    /**
-     * 获取信贷额度信息
-     * @param userId 用户ID
-     * @return 返回包含额度信息的Result对象
-     */
-    @GetMapping("/quota")  // 处理GET请求，路径为"/quota"
-    public Result<java.util.Map<String, Object>> getCreditQuotaInternal(@RequestParam("userId") Long userId) {
+    @GetMapping("/quota")
+    public Result<QuotaSummaryResponse> getCreditQuotaInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditService.getQuotaSummary(userId));
     }
-    
 
-
-    /**
-     * 获取最新的信贷申请结果
-     * @param userId 用户ID
-     * @return 返回包含最新申请结果的Result对象
-     */
-    @GetMapping("/last-result")  // 处理GET请求，路径为"/last-result"
-    public Result<java.util.Map<String, Object>> getLastResultInternal(@RequestParam("userId") Long userId) {
+    @GetMapping("/last-result")
+    public Result<CreditApplicationResultView> getLastResultInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditApplicationService.getLastApplicationResult(userId));
     }
-    
 
-
-    /**
-     * 上报风险信号
-     * @param signalData 风险信号数据
-     * @return 返回操作结果的Result对象
-     */
-    @PostMapping("/risk-signal/escalate")  // 处理POST请求，路径为"/risk-signal/escalate"
-    public Result<Void> escalateRiskSignal(@RequestBody java.util.Map<String, Object> signalData) {
-        creditService.escalateRiskSignal(signalData);
+    @PostMapping("/risk-signal/escalate")
+    public Result<Void> escalateRiskSignal(@RequestBody RiskSignalEscalateRequest request) {
+        creditService.escalateRiskSignal(request);
         return Result.success();
     }
 
-
-
-    /**
-     * 评估贷款风险
-     * @param req 包含评估请求的数据
-     * @return 返回评估结果的Result对象
-     */
-    @PostMapping("/evaluate-loan")  // 处理POST请求，路径为"/evaluate-loan"
-    public Result<String> evaluateLoanRisk(@RequestBody java.util.Map<String, Object> req) {
-        return Result.success(creditService.evaluateLoanRisk(req));
+    @PostMapping("/evaluate-loan")
+    public Result<String> evaluateLoanRisk(@RequestBody LoanRiskEvaluateRequest request) {
+        return Result.success(creditService.evaluateLoanRisk(request));
     }
 
-
-
-    /**
-     * 将贷款申请加入审核队列
-     * @param req 包含申请数据的Map对象
-     * @return 返回操作结果的Result对象
-     */
-    @PostMapping("/review/enqueue")  // 处理POST请求，路径为"/review/enqueue"
-    public Result<Void> enqueueLoanReview(@RequestBody java.util.Map<String, Object> req) {
-        creditService.enqueueLoanReview(req);
+    @PostMapping("/review/enqueue")
+    public Result<Void> enqueueLoanReview(@RequestBody LoanReviewEnqueueRequest request) {
+        creditService.enqueueLoanReview(request);
         return Result.success();
     }
-    
 
-
-    /**
-     * 扣减信贷额度
-     * @param req 包含用户ID和扣减金额的Map对象
-     * @return 返回操作结果的Result对象
-     */
-    @PostMapping("/quota/deduct")  // 处理POST请求，路径为"/quota/deduct"
-    public Result<Void> deductQuota(@RequestBody java.util.Map<String, Object> req) {  // 从请求中获取用户ID
-        Long userId = Long.valueOf(req.get("userId").toString());  // 从请求中获取金额
-        java.math.BigDecimal amount = new java.math.BigDecimal(req.get("amount").toString());  // 调用服务层扣减额度
-        creditService.deductQuota(userId, amount);
+    @PostMapping("/quota/deduct")
+    public Result<Void> deductQuota(@RequestBody QuotaDeductRequest request) {
+        creditService.deductQuota(request.getUserId(), request.getAmount());
         return Result.success();
     }
 }
