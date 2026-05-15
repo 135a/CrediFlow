@@ -10,13 +10,13 @@ import java.util.Map;
 @FeignClient(name = "credit-risk-service", fallback = CreditClientFallback.class)
 public interface CreditClient {
 
-    @GetMapping("/api/app/credit/internal/active")
+    @GetMapping("/api/internal/credit/active")
     Result<Map<String, Object>> getActiveCreditInternal(@RequestParam("userId") Long userId);
 
-    @org.springframework.web.bind.annotation.PostMapping("/api/app/credit/internal/evaluate-loan")
+    @org.springframework.web.bind.annotation.PostMapping("/api/internal/credit/evaluate-loan")
     Result<String> evaluateLoanRisk(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> req);
 
-    @org.springframework.web.bind.annotation.PostMapping("/api/app/credit/internal/review/enqueue")
+    @org.springframework.web.bind.annotation.PostMapping("/api/internal/credit/review/enqueue")
     Result<Void> enqueueLoanReview(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> req);
 }
 

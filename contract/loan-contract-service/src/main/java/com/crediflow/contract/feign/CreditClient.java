@@ -10,6 +10,6 @@ import java.util.Map;
 @FeignClient(name = "credit-risk-service")
 public interface CreditClient {
 
-    @PostMapping("/api/app/credit/internal/quota/deduct")
+    @PostMapping("/api/internal/credit/quota/deduct")
     Result<Void> deductQuota(@RequestBody Map<String, Object> req);
 }

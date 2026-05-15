@@ -1,9 +1,0 @@
-个人借款协议 (Personal Loan Agreement)
---------------------------------------------------
-合同编号 (Contract No) : ${contractNo}
-借款人ID (User ID)    : ${userId}
-借款本金 (Loan Amount) : ${amount} 元
-借款费率 (Interest Rate): ${interestRate} (日利率)
-
-借款人已充分阅读并同意以上借款条款及《个人信息保护与征信授权书》。
-(User agrees to all terms and conditions. Checked)
