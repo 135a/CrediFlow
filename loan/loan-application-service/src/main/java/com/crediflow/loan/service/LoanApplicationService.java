@@ -6,7 +6,7 @@ import com.crediflow.loan.entity.LoanApplication;
 import java.math.BigDecimal;
 
 public interface LoanApplicationService extends IService<LoanApplication> {
-    LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idmpToken);
+    LoanApplication applyLoan(Long userId, BigDecimal applyAmount, Integer term, String idempotencyToken);
     void approve(Long applicationId);
     void reject(Long applicationId, String reason);
     

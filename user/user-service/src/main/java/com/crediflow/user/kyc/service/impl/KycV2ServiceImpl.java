@@ -57,10 +57,10 @@ public class KycV2ServiceImpl implements KycV2Service {
     public KycStep1Response submitStep1(long userId, String realName, String idCardNo, String idempotencyKey) {
         String rn = realName == null ? "" : realName.trim();
         String idc = idCardNo == null ? "" : idCardNo.trim().toUpperCase();
-        if (!StringUtils.hasText(rn) || !StringUtils.hasText(idc)) {
+        if (!StringUtils.hasText(realName) || !StringUtils.hasText(idCardNo)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "姓名与身份证号不能为空");
         }
-        if (!IdCardValidator.isValid18(idc)) {
+        if (!IdCardValidator.isValid18(idCardNo)) {
             throw new BusinessException(ErrorCode.REALNAME_ID_CARD_INVALID,
                     ErrorCode.REALNAME_ID_CARD_INVALID.getMessage());
         }
@@ -70,8 +70,8 @@ public class KycV2ServiceImpl implements KycV2Service {
             return toResponse(existing);
         }
 
-        EligibilityOutcome outcome = eligibilityChecker.check(userId, rn, idc);
-        AgeRangePolicy.Result age = agePolicy.evaluate(idc, LocalDate.now());
+        EligibilityOutcome outcome = eligibilityChecker.check(userId, realName, idCardNo);
+        AgeRangePolicy.Result age = agePolicy.evaluate(idCardNo, LocalDate.now());
         Date now = new Date();
         existing.setEligibilityStatus(toEligibilityStatus(outcome.decision()));
         existing.setEligibilityDecidedAt(now);
@@ -83,8 +83,8 @@ public class KycV2ServiceImpl implements KycV2Service {
         }
 
         String fingerprint = IdCardFingerprintCalculator.hmacSha256Hex(
-                realnameProperties.getIdempotencySalt(), rn, idc);
-        RealnameVerifyCommand cmd = new RealnameVerifyCommand(userId, rn, idc);
+                realnameProperties.getIdempotencySalt(), realName, idCardNo);
+        RealnameVerifyCommand cmd = new RealnameVerifyCommand(userId, realName, idCardNo);
         long t0 = System.nanoTime();
         RealnameVerifyResult result;
         try {
@@ -109,9 +109,9 @@ public class KycV2ServiceImpl implements KycV2Service {
         }
         if (result.terminalFailure()) {
             existing.setRealnameStatus(RealnameStatus.FAILED.name());
-            existing.setRealName(rn);
-            existing.setIdCardNo(idc);
-            existing.setIdCardMask(IdCardMask.mask18(idc));
+            existing.setRealName(realName);
+            existing.setIdCardNo(idCardNo);
+            existing.setIdCardMask(IdCardMask.mask18(idCardNo));
             existing.setIdCardFingerprint(fingerprint);
             persist(existing);
             throw new BusinessException(ErrorCode.REALNAME_VERIFY_FAILED,
@@ -123,9 +123,9 @@ public class KycV2ServiceImpl implements KycV2Service {
                     ErrorCode.REALNAME_RETRY_LATER.getMessage());
         }
 
-        existing.setRealName(rn);
-        existing.setIdCardNo(idc);
-        existing.setIdCardMask(IdCardMask.mask18(idc));
+        existing.setRealName(realName);
+        existing.setIdCardNo(idCardNo);
+        existing.setIdCardMask(IdCardMask.mask18(idCardNo));
         existing.setIdCardFingerprint(fingerprint);
         existing.setRealnameStatus(RealnameStatus.VERIFIED.name());
         existing.setRealnameVerifiedAt(now);

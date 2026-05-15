@@ -15,13 +15,19 @@ import java.util.Date;
 @Service
 public class RepaymentPlanServiceImpl extends ServiceImpl<RepaymentPlanMapper, RepaymentPlan> implements RepaymentPlanService {
 
+    /**
+     * 默认月息利率。此处硬编码仅作为模拟用途，实际应从产品配置中获取。
+     * 表示每月收取本金 5% 的利息。
+     */
+    private static final BigDecimal DEFAULT_MONTHLY_INTEREST_RATE = new BigDecimal("0.05");
+
     @Override
     public void generateRepaymentPlan(Long applicationId, Long userId) {
-        // Mock generation for 12 months, 10000 total principal, 0.05 interest
+        // Mock generation for 12 months, 10000 total principal
         int totalTerms = 12;
         BigDecimal totalPrincipal = new BigDecimal("10000.00");
         BigDecimal principalPerTerm = totalPrincipal.divide(new BigDecimal(totalTerms), 2, BigDecimal.ROUND_HALF_UP);
-        BigDecimal interestPerTerm = principalPerTerm.multiply(new BigDecimal("0.05")).setScale(2, BigDecimal.ROUND_HALF_UP);
+        BigDecimal interestPerTerm = principalPerTerm.multiply(DEFAULT_MONTHLY_INTEREST_RATE).setScale(2, BigDecimal.ROUND_HALF_UP);
         
         Calendar cal = Calendar.getInstance();
         

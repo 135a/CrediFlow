@@ -19,8 +19,8 @@ public class LoanApplicationController {
     public Result<LoanApplication> applyLoan(@RequestHeader("X-User-Id") Long userId,
                                              @RequestParam("applyAmount") BigDecimal applyAmount,
                                              @RequestParam("term") Integer term,
-                                             @RequestParam("idmpToken") String idmpToken) {
-        return Result.success(loanApplicationService.applyLoan(userId, applyAmount, term, idmpToken));
+                                             @RequestParam("idmpToken") String idempotencyToken) {
+        return Result.success(loanApplicationService.applyLoan(userId, applyAmount, term, idempotencyToken));
     }
     @GetMapping("/internal/admin/list")
     public Result<com.baomidou.mybatisplus.core.metadata.IPage<java.util.Map<String, Object>>> listApplications(

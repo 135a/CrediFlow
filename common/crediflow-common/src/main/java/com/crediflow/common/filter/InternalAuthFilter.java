@@ -4,15 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Base64;
 import com.crediflow.common.util.HmacUtils;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -80,7 +76,13 @@ public class InternalAuthFilter implements Filter {
             }
 
             // 防重放：检查时间戳是否超过 5 分钟
-            long requestTime = Long.parseLong(timestamp);
+            long requestTime;
+            try {
+                requestTime = Long.parseLong(timestamp);
+            } catch (NumberFormatException e) {
+                httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Timestamp Format");
+                return;
+            }
             if (System.currentTimeMillis() - requestTime > 5 * 60 * 1000) {
                 httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Request Expired");
                 return;

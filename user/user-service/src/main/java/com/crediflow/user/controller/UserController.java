@@ -10,8 +10,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/app/user")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
     @PostMapping("/register")
     public Result<String> register(@RequestParam String phone, 
                                    @RequestParam String password,
@@ -20,16 +24,19 @@ public class UserController {
         String token = userService.register(phone, password, confirmPassword, smsCode);
         return Result.success(token);
     }
+
     @PostMapping("/login")
     public Result<String> login(@RequestParam String phone, @RequestParam String password) {
         String token = userService.login(phone, password);
         return Result.success(token);
     }
+
     @PostMapping("/auth/sms")
     public Result<?> smsAuth() {
         // Task 7.2 为短信/人脸认证预留接口与开关（未开通时明确错误语义）
         throw new BusinessException(ErrorCode.BUSINESS_ERROR, "短信认证功能暂未开通");
     }
+
     @PostMapping("/auth/face")
     public Result<?> faceAuth() {
         throw new BusinessException(ErrorCode.BUSINESS_ERROR, "人脸识别功能暂未开通");
