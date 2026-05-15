@@ -4,7 +4,14 @@ version = "0.1.0"
 description = "CrediFlow Python Data Agent（骨架）"
 readme = "README.md"
 requires-python = ">=3.11"
-
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "langchain",
+    "langchain-openai",
+    "pydantic"
+]
 [project.optional-dependencies]
 dev = ["ruff"]
 
