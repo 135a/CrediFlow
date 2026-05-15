@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.crediflow.common.mybatis.CryptoTypeHandler;
+import com.crediflow.common.mybatis.SensitiveDataCryptoTypeHandler;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -21,7 +21,7 @@ public class UserKyc {
     private String residence;
     private String occupation;
     private String realName;
-    @TableField(value = "id_card_no", typeHandler = CryptoTypeHandler.class)
+    @TableField(value = "id_card_no", typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String idCardNo;
     private Integer age;
     private Boolean faceVerified;

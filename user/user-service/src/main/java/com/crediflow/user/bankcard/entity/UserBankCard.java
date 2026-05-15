@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.crediflow.common.mybatis.CryptoTypeHandler;
+import com.crediflow.common.mybatis.SensitiveDataCryptoTypeHandler;
 import lombok.Data;
 
 import java.util.Date;
@@ -23,11 +23,11 @@ public class UserBankCard {
     private String bindCardId;
     private String bankCode;
 
-    @TableField(value = "card_no", typeHandler = CryptoTypeHandler.class)
+    @TableField(value = "card_no", typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String cardNo;
     private String cardNoMask;
 
-    @TableField(value = "reserved_phone", typeHandler = CryptoTypeHandler.class)
+    @TableField(value = "reserved_phone", typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String reservedPhone;
     private String reservedPhoneMask;
 

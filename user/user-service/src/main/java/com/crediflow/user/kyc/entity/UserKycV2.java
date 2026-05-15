@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.crediflow.common.mybatis.CryptoTypeHandler;
+import com.crediflow.common.mybatis.SensitiveDataCryptoTypeHandler;
 import lombok.Data;
 
 import java.util.Date;
@@ -24,8 +24,8 @@ public class UserKycV2 {
 
     private String realName;
 
-    /** AES 密文，通过 {@link CryptoTypeHandler} 透明加解密。 */
-    @TableField(value = "id_card_no", typeHandler = CryptoTypeHandler.class)
+    /** AES 密文，通过 {@link SensitiveDataCryptoTypeHandler} 透明加解密。 */
+    @TableField(value = "id_card_no", typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String idCardNo;
 
     private String idCardMask;

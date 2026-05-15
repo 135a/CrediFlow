@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.crediflow.common.mybatis.CryptoTypeHandler;
+import com.crediflow.common.mybatis.SensitiveDataCryptoTypeHandler;
 import lombok.Data;
 
 import java.util.Date;
@@ -15,12 +15,12 @@ public class User {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
-    @TableField(typeHandler = CryptoTypeHandler.class)
+    @TableField(typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String phone;
 
     private String password;
 
-    @TableField(typeHandler = CryptoTypeHandler.class)
+    @TableField(typeHandler = SensitiveDataCryptoTypeHandler.class)
     private String idCard;
 
     private String realName;
