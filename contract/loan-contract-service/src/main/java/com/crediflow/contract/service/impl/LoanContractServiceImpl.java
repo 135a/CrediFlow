@@ -62,9 +62,10 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
      * @param applicationId 申请ID
      * @param userId 用户ID
      * @param contractType 合同类型
+     * @return 是否本次新插入合同（供 MQ 等调用方决定是否向下游发「合同就绪」类事件）
      */
     @Override
-    public void generateContract(Long applicationId, Long userId, String contractType) {
+    public boolean generateContract(Long applicationId, Long userId, String contractType) {
         // 构建查询条件，检查是否已存在合同
         LambdaQueryWrapper<LoanContract> query = new LambdaQueryWrapper<>();
         query.eq(LoanContract::getApplicationId, applicationId)
@@ -74,7 +75,7 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         // 查询已存在的合同
         LoanContract existing = this.getOne(query);
         if (existing != null) {
-            return; // 幂等防重：已存在合同则直接返回
+            return false; // 幂等防重：已存在合同则直接返回，未写库
         }
 
         // 创建新合同对象
@@ -85,13 +86,16 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         contract.setContractType(contractType);
         contract.setStatus("INIT"); // 初始生成，等待签署
         
-        // TODO: 后续接入 Python 服务渲染 PDF 模板，并存储至 OSS
-        contract.setContractUrl("https://oss.crediflow.com/contracts/" + contractType + "/" + contract.getContractNo() + ".pdf");
+        // TODO: 接入第三方电子签章平台（e签宝/法大大），由平台渲染 PDF 并完成 CA 签名；
+        //       签署完成后平台异步回调，后端更新状态 + 归档至 OSS。
+        //       当前阶段 contractUrl 暂置空，待签署完成后再由回调写入真实 OSS 链接。
+        contract.setContractUrl(null);
         
         // 设置创建和更新时间
         contract.setCreatedAt(new Date());
         contract.setUpdatedAt(new Date());
         this.save(contract);
+        return true;
     }
 
     /**
@@ -128,7 +132,8 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         }
 
         if (contract == null) {
-            generateContract(applicationId, userId, "LOAN_CONTRACT");
+            // 返回值在此路径不关心是否新建：HTTP 签约入口不发送 CONTRACT_READY
+            this.generateContract(applicationId, userId, "LOAN_CONTRACT");
             // Fetch newly generated contract
             contract = this.getOne(query);
         }
@@ -205,5 +210,25 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
             
             remainingPrincipal = remainingPrincipal.subtract(currentPrincipal);
         }
+    }
+
+    @Override
+    public Map<String, Object> getLatestCreditContractStatus(Long userId) {
+        LambdaQueryWrapper<LoanContract> query = new LambdaQueryWrapper<>();
+        query.eq(LoanContract::getUserId, userId)
+             .eq(LoanContract::getContractType, "CREDIT_CONTRACT")
+             .orderByDesc(LoanContract::getCreatedAt)
+             .last("LIMIT 1");
+             
+        LoanContract contract = this.getOne(query);
+        
+        Map<String, Object> result = new HashMap<>();
+        if (contract != null) {
+            result.put("status", contract.getStatus());
+            result.put("contractNo", contract.getContractNo());
+        } else {
+            result.put("status", "NOT_FOUND");
+        }
+        return result;
     }
 }
