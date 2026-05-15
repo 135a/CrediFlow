@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+import com.crediflow.common.util.HmacUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -100,11 +101,7 @@ public class InternalAuthFilter implements Filter {
 
     private String generateHmacSHA256(String data, String key) {
         try {
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-            byte[] hash = sha256Hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
+            return HmacUtils.generateHmacSHA256(data, key);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate internal signature", e);
         }

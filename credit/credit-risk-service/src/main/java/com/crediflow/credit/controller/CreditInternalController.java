@@ -5,7 +5,7 @@ import com.crediflow.credit.dto.CreditApplyResponse;
 import com.crediflow.credit.dto.CreditApplicationResultView;
 import com.crediflow.credit.dto.CreditApplicationStatusView;
 import com.crediflow.credit.dto.LoanReviewEnqueueRequest;
-import com.crediflow.credit.dto.LoanRiskEvaluateRequest;
+import com.crediflow.common.api.credit.LoanRiskEvaluateRequest;
 import com.crediflow.credit.dto.QuotaDeductRequest;
 import com.crediflow.credit.dto.QuotaSummaryResponse;
 import com.crediflow.credit.dto.RiskSignalEscalateRequest;

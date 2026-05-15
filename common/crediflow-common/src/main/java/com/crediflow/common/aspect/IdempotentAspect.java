@@ -3,7 +3,7 @@ package com.crediflow.common.aspect;
 import com.crediflow.common.annotation.Idempotent;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
-import com.crediflow.common.utils.IdempotentUtils;
+import com.crediflow.common.util.IdempotentUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;

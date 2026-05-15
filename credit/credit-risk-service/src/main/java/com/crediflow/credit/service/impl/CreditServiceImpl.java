@@ -7,7 +7,7 @@ import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
 import com.crediflow.credit.dto.LoanReviewEnqueueRequest;
-import com.crediflow.credit.dto.LoanRiskEvaluateRequest;
+import com.crediflow.common.api.credit.LoanRiskEvaluateRequest;
 import com.crediflow.credit.dto.QuotaSummaryResponse;
 import com.crediflow.credit.dto.RiskSignalEscalateRequest;
 import com.crediflow.credit.entity.CreditApplication;

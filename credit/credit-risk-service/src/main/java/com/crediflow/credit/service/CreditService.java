@@ -3,7 +3,7 @@ package com.crediflow.credit.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.crediflow.credit.dto.LoanReviewEnqueueRequest;
-import com.crediflow.credit.dto.LoanRiskEvaluateRequest;
+import com.crediflow.common.api.credit.LoanRiskEvaluateRequest;
 import com.crediflow.credit.dto.QuotaSummaryResponse;
 import com.crediflow.credit.dto.RiskSignalEscalateRequest;
 import com.crediflow.credit.entity.CreditApplication;
