@@ -9,23 +9,28 @@ class BaseLLMAdapter(ABC):
 
 class QwenAdapter(BaseLLMAdapter):
     def generate(self, prompt: str) -> str:
-        # 伪代码：实际需引入 dashscope 或 openai 兼容包
         if not Config.QWEN_API_KEY:
-            return "Qwen: API Key not configured."
-        return f"[Qwen Response] {prompt}"
+            raise NotImplementedError("Qwen API key is missing. Please implement the actual API call logic.")
+        raise NotImplementedError("Qwen API logic needs to be implemented by calling the real LLM endpoint.")
 
 class ZhipuAdapter(BaseLLMAdapter):
     def generate(self, prompt: str) -> str:
-        # 伪代码：实际需引入 zhipuai 包
         if not Config.ZHIPU_API_KEY:
-            return "Zhipu: API Key not configured."
-        return f"[Zhipu Response] {prompt}"
+            raise NotImplementedError("Zhipu API key is missing. Please implement the actual API call logic.")
+        raise NotImplementedError("Zhipu API logic needs to be implemented by calling the real LLM endpoint.")
 
 class ErnieAdapter(BaseLLMAdapter):
     def generate(self, prompt: str) -> str:
         if not Config.ERNIE_API_KEY:
-            return "Ernie: API Key not configured."
-        return f"[Ernie Response] {prompt}"
+            raise NotImplementedError("Ernie API key is missing. Please implement the actual API call logic.")
+        raise NotImplementedError("Ernie API logic needs to be implemented by calling the real LLM endpoint.")
+
+class LegacyLLMAdapter(BaseLLMAdapter):
+    def generate(self, prompt: str) -> str:
+        from legacy_agent.llm_core import get_llm
+        llm = get_llm()
+        result = llm.invoke(prompt)
+        return result.content if hasattr(result, "content") else str(result)
 
 def get_active_llm() -> BaseLLMAdapter:
     provider = Config.ACTIVE_PROVIDER.lower()
@@ -33,5 +38,7 @@ def get_active_llm() -> BaseLLMAdapter:
         return ZhipuAdapter()
     elif provider == "ernie":
         return ErnieAdapter()
+    elif provider == "legacy":
+        return LegacyLLMAdapter()
     else:
         return QwenAdapter()

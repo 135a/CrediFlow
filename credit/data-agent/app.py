@@ -1,5 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from legacy_agent.llm_core import get_llm
 from rag_graph import build_rag_graph, AgentState
 from nl2sql import NL2SQLEngine
 from nl2api import NL2APIEngine
@@ -108,45 +112,81 @@ def evaluate_risk(req: dict):
         "reason": f"AI风控裁决结果。政策提示: {policy_info} | 决策过程追踪完毕。"
     }
 
-class OcrRequest(BaseModel):
-    image_base64: str
+class ManualReviewResult(BaseModel):
+    riskDetails: List[str] = Field(description="风险明细列表，每项是对风险的描述")
+    defaultProbability: float = Field(description="预测的违约概率，范围 0.0 到 1.0")
+    fraudProbability: float = Field(description="预测的欺诈概率，范围 0.0 到 1.0")
+    suggestion: str = Field(description="人工复核建议，必须是以下之一：建议放行, 建议降额, 建议拒绝, 建议限制期数")
 
-@app.post("/api/v1/agent/ocr")
-async def extract_id_card_ocr(req: OcrRequest):
-    """
-    接收前端或 Java 端传来的 base64 图片，调用多模态大模型进行 OCR 解析。
-    返回姓名、身份证号和计算得出的年龄。
-    """
-    # 真实场景中，此处应调用 Qwen-VL 等视觉大模型：
-    # llm = get_active_vl_model()
-    # json_result = llm.generate("请提取图片中的真实姓名、身份证号，并计算年龄，以JSON格式输出", image=req.image_base64)
-    
-    # 这里模拟大模型解析成功的结构化数据
-    # 根据常识，我们可以从模拟生成的身份证号计算年龄，这里直接 mock
-    import random
-    age = random.randint(20, 45)
-    return {
-        "status": "SUCCESS",
-        "data": {
-            "realName": "张三(OCR识别)",
-            "idCardNo": f"11010519{90+age%10}01011234",
-            "age": age
+@app.post("/manual_review_assistant")
+def manual_review_assistant(data: dict):
+    user_id = data.get("userId")
+    score_detail = data.get("scoreDetail", {})
+    total_score = score_detail.get("totalScore", 50)
+    risk_level = score_detail.get("riskLevel", "HIGH")
+    scene_type = data.get("sceneType", "CREDIT")
+
+    llm = get_llm()
+    parser = JsonOutputParser(pydantic_object=ManualReviewResult)
+
+    prompt = PromptTemplate(
+        template="你是一个资深的信贷风控审核专家。请根据以下用户得分详情与场景类型，评估该用户的风险情况并给出结构化的建议。\n\n"
+                 "用户场景类型: {scene_type}\n"
+                 "风控模型总分: {total_score} (满分100，越低风险越高)\n"
+                 "风控定级: {risk_level}\n\n"
+                 "{format_instructions}\n",
+        input_variables=["scene_type", "total_score", "risk_level"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
+    )
+
+    try:
+        chain = prompt | llm | parser
+        result = chain.invoke({
+            "scene_type": scene_type,
+            "total_score": total_score,
+            "risk_level": risk_level
+        })
+        return result
+    except Exception as e:
+        return {
+            "riskDetails": [f"模型评分异常 (得分: {total_score})"],
+            "defaultProbability": 0.8,
+            "fraudProbability": 0.5,
+            "suggestion": "建议拒绝"
         }
-    }
 
-class FaceVerifyRequest(BaseModel):
-    id_card_no: str
-    face_image_base64: str
+class RejectionInsightResult(BaseModel):
+    userSafeInsight: str = Field(description="给用户看的拒件理由（需委婉、合规，不泄露风控规则底牌）")
+    adminInsight: str = Field(description="给风控运营人员看的真实拒件洞察（直接指出触发的规则和风险点）")
+    actionableAdvice: str = Field(description="建议风控人员或用户采取的后续行动")
 
-@app.post("/api/v1/agent/face_verify")
-async def face_verify(req: FaceVerifyRequest):
-    """模拟人脸活体比对网关"""
-    # 生产环境中应调用公安部第一研究所或旷视等第三方人脸比对接口
-    return {
-        "status": "SUCCESS",
-        "score": 98.5,
-        "message": "活体检测通过，且与网纹照比对一致"
-    }
+@app.post("/credit_rejection_insight")
+def credit_rejection_insight(data: dict):
+    rule_summaries = data.get("ruleSummaries", [])
+    rules_text = "\n".join(rule_summaries)
+
+    llm = get_llm()
+    parser = JsonOutputParser(pydantic_object=RejectionInsightResult)
+
+    prompt = PromptTemplate(
+        template="你是一个专业的信贷风控解释专家。以下是风控规则引擎刚刚拒绝了一名用户的授信申请，触发的拒件规则列表如下：\n\n"
+                 "{rules_text}\n\n"
+                 "请根据上述规则，生成三个维度的拒件洞察与解释：\n"
+                 "{format_instructions}\n",
+        input_variables=["rules_text"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
+    )
+
+    try:
+        chain = prompt | llm | parser
+        result = chain.invoke({"rules_text": rules_text})
+        return result
+    except Exception as e:
+        return {
+            "userSafeInsight": "综合评估未通过，请保持良好信用记录后重试",
+            "adminInsight": f"模型或规则拒件，原因：{rule_summaries}",
+            "actionableAdvice": "建议三个月后再试"
+        }
 
 if __name__ == "__main__":
     import uvicorn
