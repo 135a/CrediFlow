@@ -1,15 +1,13 @@
 package com.crediflow.contract.controller;
 
 import com.crediflow.common.web.Result;
-import com.crediflow.contract.entity.LoanContract;
+import com.crediflow.contract.dto.CreditContractStatusResult;
 import com.crediflow.contract.service.LoanContractService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 /**
  * 合同内部控制器
@@ -30,10 +28,10 @@ public class ContractInternalController {
      * 获取信用合同状态接口
      *
      * @param userId 用户ID，用于查询指定用户的合同信息
-     * @return 返回包含合同状态和合同号的Map对象，如果未找到合同则状态为"NOT_FOUND"
+     * @return 合同状态与合同号；无记录时 status 为 NOT_FOUND
      */
     @GetMapping("/credit-status")
-    public Result<Map<String, Object>> getCreditContractStatus(@RequestParam("userId") Long userId) {
+    public Result<CreditContractStatusResult> getCreditContractStatus(@RequestParam("userId") Long userId) {
         return Result.success(loanContractService.getLatestCreditContractStatus(userId));
     }
 }

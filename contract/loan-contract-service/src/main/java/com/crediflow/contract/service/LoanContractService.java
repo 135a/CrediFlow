@@ -1,9 +1,10 @@
 package com.crediflow.contract.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.crediflow.contract.dto.ContractLinkResult;
+import com.crediflow.contract.dto.CreditContractStatusResult;
+import com.crediflow.contract.dto.SignContractResult;
 import com.crediflow.contract.entity.LoanContract;
-
-import java.util.Map;
 
 /**
  * 贷款合同服务接口，继承自IService<LoanContract>
@@ -25,16 +26,16 @@ public interface LoanContractService extends IService<LoanContract> {
      * @param amount 贷款金额
      * @param term 贷款期限
      * @param agreed 是否同意合同条款
-     * @return 包含合同相关信息的Map集合
+     * @return 签约业务结果（强类型 DTO）
      */
-    Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, java.math.BigDecimal amount, Integer term, boolean agreed);
+    SignContractResult signAndGenerateContract(Long userId, Long applicationId, java.math.BigDecimal amount, Integer term, boolean agreed);
     /**
      * 获取合同链接
      * @param userId 用户ID
      * @param applicationId 申请ID
-     * @return 包含合同链接信息的Map集合
+     * @return 合同链接（强类型，字段名与历史 JSON 一致）
      */
-    Map<String, Object> getContractLink(Long userId, Long applicationId);
+    ContractLinkResult getContractLink(Long userId, Long applicationId);
     /**
      * 生成收据和还款计划
      * @param applicationId 申请ID
@@ -47,7 +48,7 @@ public interface LoanContractService extends IService<LoanContract> {
     /**
      * 获取指定用户的最新信用合同状态
      * @param userId 用户ID
-     * @return 包含合同状态和合同号的Map集合
+     * @return 最新一条信用合同的状态快照（强类型）
      */
-    Map<String, Object> getLatestCreditContractStatus(Long userId);
+    CreditContractStatusResult getLatestCreditContractStatus(Long userId);
 }

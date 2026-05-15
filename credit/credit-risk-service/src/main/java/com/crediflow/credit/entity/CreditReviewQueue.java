@@ -10,7 +10,7 @@ import java.util.Date;
 @Data
 @TableName("cf_credit_review_queue")
 public class CreditReviewQueue {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long applicationId;
     private Long userId;

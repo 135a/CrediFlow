@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
+import com.crediflow.contract.dto.ContractLinkResult;
+import com.crediflow.contract.dto.CreditContractStatusResult;
+import com.crediflow.contract.dto.SignContractResult;
 import com.crediflow.contract.entity.LoanContract;
 import com.crediflow.contract.entity.LoanReceipt;
 import com.crediflow.contract.entity.RepaymentPlan;
@@ -105,11 +108,11 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
      * @param amount 贷款金额
      * @param term 贷款期限
      * @param agreed 是否同意协议
-     * @return 包含签约状态的Map对象
+     * @return 签约结果 DTO（与 HTTP 层序列化字段一致）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, BigDecimal amount, Integer term, boolean agreed) {
+    public SignContractResult signAndGenerateContract(Long userId, Long applicationId, BigDecimal amount, Integer term, boolean agreed) {
         // 检查用户是否同意协议
         if (!agreed) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "必须同意协议才能签约");
@@ -122,13 +125,10 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
              .last("LIMIT 1");
              
         LoanContract contract = this.getOne(query);
-        Map<String, Object> map = new HashMap<>();
         
         if (contract != null && "SIGNED".equals(contract.getStatus())) {
             // Already signed, return success directly (idempotent)
-            map.put("status", "SUCCESS");
-            map.put("message", "Contract already signed");
-            return map;
+            return new SignContractResult("SUCCESS", "Contract already signed");
         }
 
         if (contract == null) {
@@ -155,16 +155,13 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Deduct quota failed: " + (deductResult != null ? deductResult.getMessage() : "unknown"));
         }
         
-        map.put("status", "SUCCESS");
-        return map;
+        return new SignContractResult("SUCCESS", null);
     }
 
     @Override
-    public Map<String, Object> getContractLink(Long userId, Long applicationId) {
-        Map<String, Object> map = new HashMap<>();
+    public ContractLinkResult getContractLink(Long userId, Long applicationId) {
         // TODO: 后续替换为从 OSS 获取真实的合同下载链接或预览 Token
-        map.put("link", "https://oss.crediflow.com/contracts/dummy.pdf");
-        return map;
+        return new ContractLinkResult("https://oss.crediflow.com/contracts/dummy.pdf");
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -213,7 +210,7 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
     }
 
     @Override
-    public Map<String, Object> getLatestCreditContractStatus(Long userId) {
+    public CreditContractStatusResult getLatestCreditContractStatus(Long userId) {
         LambdaQueryWrapper<LoanContract> query = new LambdaQueryWrapper<>();
         query.eq(LoanContract::getUserId, userId)
              .eq(LoanContract::getContractType, "CREDIT_CONTRACT")
@@ -221,14 +218,9 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
              .last("LIMIT 1");
              
         LoanContract contract = this.getOne(query);
-        
-        Map<String, Object> result = new HashMap<>();
         if (contract != null) {
-            result.put("status", contract.getStatus());
-            result.put("contractNo", contract.getContractNo());
-        } else {
-            result.put("status", "NOT_FOUND");
+            return new CreditContractStatusResult(contract.getStatus(), contract.getContractNo());
         }
-        return result;
+        return new CreditContractStatusResult("NOT_FOUND", null);
     }
 }

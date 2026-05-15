@@ -57,6 +57,12 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
     @Value("${crediflow.credit.app-url:http://localhost:8080}")
     private String appUrl;
 
+    @Autowired
+    private com.crediflow.credit.mapper.CreditReviewQueueMapper creditReviewQueueMapper;
+
+    @Autowired
+    private com.crediflow.credit.service.impl.ManualReviewAsyncService manualReviewAsyncService;
+
     @Override
     public com.crediflow.credit.entity.CreditApplication applyCredit(Long userId) {
         // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
@@ -260,5 +266,103 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
             }
         }
         throw new BusinessException(ErrorCode.BUSINESS_ERROR, "系统繁忙，额度扣减失败，请稍后重试");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getQuotaSummary(Long userId) {
+        LambdaQueryWrapper<UserCreditQuota> query = new LambdaQueryWrapper<>();
+        query.eq(UserCreditQuota::getUserId, userId)
+             .last("LIMIT 1");
+        
+        UserCreditQuota quota = userCreditQuotaMapper.selectOne(query);
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        if (quota != null) {
+            map.put("totalAmount", quota.getTotalAmount());
+            map.put("availableAmount", quota.getAvailableAmount());
+            map.put("usedAmount", quota.getUsedAmount());
+        }
+        return map;
+    }
+
+    @Override
+    public void escalateRiskSignal(java.util.Map<String, Object> signalData) {
+        Long userId = Long.valueOf(signalData.get("userId").toString());
+        java.util.List<String> chatLogs = (java.util.List<String>) signalData.get("relevantChatLogs");
+        String suggestion = (String) signalData.get("agentSuggestions");
+        String riskType = (String) signalData.get("riskType");
+        
+        com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
+        queue.setUserId(userId);
+        
+        LambdaQueryWrapper<com.crediflow.credit.entity.CreditApplication> query = new LambdaQueryWrapper<>();
+        query.eq(com.crediflow.credit.entity.CreditApplication::getUserId, userId)
+             .orderByDesc(com.crediflow.credit.entity.CreditApplication::getCreatedAt)
+             .last("LIMIT 1");
+        com.crediflow.credit.entity.CreditApplication app = creditApplicationService.getOne(query);
+        
+        queue.setApplicationId(app != null ? app.getId() : 0L);
+        queue.setRiskDetails("[\"对话意图预警：" + riskType + "\", \"相关聊天记录：" + chatLogs.toString() + "\"]");
+        queue.setDefaultProbability(0.85);
+        queue.setFraudProbability(0.50);
+        queue.setAiSuggestion(suggestion);
+        queue.setStatus("PENDING");
+        queue.setCreatedAt(new Date());
+        queue.setUpdatedAt(new Date());
+        
+        creditReviewQueueMapper.insert(queue);
+    }
+
+    @Override
+    public String evaluateLoanRisk(java.util.Map<String, Object> req) {
+        Long userId = Long.valueOf(req.get("userId").toString());
+        
+        boolean hasOverdue = false; // TODO: check actual overdue loans
+        if (hasOverdue) {
+            return "REJECTED";
+        }
+        
+        java.time.LocalTime now = java.time.LocalTime.now();
+        if (now.getHour() >= 1 && now.getHour() <= 4) {
+            boolean highFrequency = false; // mock high frequency
+            if (highFrequency) {
+                return "MANUAL_REVIEW";
+            }
+        }
+        
+        ScoreDetail detail = creditScoringEngine.calculateLoanScore(userId);
+        if ("HIGH".equals(detail.getRiskLevel())) {
+            return "MANUAL_REVIEW";
+        }
+        
+        return detail.getRiskLevel();
+    }
+
+    @Override
+    public void enqueueLoanReview(java.util.Map<String, Object> req) {
+        Long applicationId = Long.valueOf(req.get("applicationId").toString());
+        Long userId = Long.valueOf(req.get("userId").toString());
+        String sceneType = (String) req.getOrDefault("sceneType", "LOAN");
+        
+        com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
+        queue.setApplicationId(applicationId);
+        queue.setUserId(userId);
+        queue.setSceneType(sceneType);
+        queue.setStatus("PENDING");
+        queue.setCreatedAt(new Date());
+        queue.setUpdatedAt(new Date());
+        
+        creditReviewQueueMapper.insert(queue);
+        
+        manualReviewAsyncService.generateManualReviewAssistantWithScene(applicationId, userId, 50.0, "HIGH", sceneType);
+    }
+
+    @Override
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.crediflow.credit.entity.CreditReviewQueue> listReviewQueue(long current, long size) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.crediflow.credit.entity.CreditReviewQueue> page = 
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size);
+        LambdaQueryWrapper<com.crediflow.credit.entity.CreditReviewQueue> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.crediflow.credit.entity.CreditReviewQueue::getStatus, "PENDING")
+               .orderByAsc(com.crediflow.credit.entity.CreditReviewQueue::getCreatedAt);
+        return creditReviewQueueMapper.selectPage(page, wrapper);
     }
 }

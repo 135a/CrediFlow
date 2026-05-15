@@ -1,6 +1,5 @@
 package com.crediflow.credit.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.crediflow.common.web.Result;
 import com.crediflow.credit.entity.CreditApplication;
@@ -18,9 +17,6 @@ public class CreditAdminController {
     @Autowired
     private CreditApplicationService creditApplicationService;
 
-    @Autowired
-    private com.crediflow.credit.feign.UserClient userClient;
-
     @GetMapping("/applications")
     public Result<Page<CreditApplication>> listApplications(
             @RequestParam(defaultValue = "1") long current,
@@ -29,27 +25,7 @@ public class CreditAdminController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime,
             @RequestParam(required = false) String phone) {
         
-        LambdaQueryWrapper<CreditApplication> queryWrapper = new LambdaQueryWrapper<>();
-        
-        if (phone != null && !phone.trim().isEmpty()) {
-            Result<Long> userRes = userClient.getUserIdByPhone(phone);
-            if (userRes == null || userRes.getData() == null) {
-                // 如果找不到对应的用户，直接返回空分页
-                return Result.success(new Page<>(current, size));
-            }
-            queryWrapper.eq(CreditApplication::getUserId, userRes.getData());
-        }
-
-        if (startTime != null) {
-            queryWrapper.ge(CreditApplication::getCreatedAt, startTime);
-        }
-        if (endTime != null) {
-            queryWrapper.le(CreditApplication::getCreatedAt, endTime);
-        }
-        queryWrapper.orderByDesc(CreditApplication::getCreatedAt);
-
-        Page<CreditApplication> page = new Page<>(current, size);
-        return Result.success(creditApplicationService.page(page, queryWrapper));
+        return Result.success(creditApplicationService.listApplications(current, size, startTime, endTime, phone));
     }
 
     @Autowired
@@ -61,17 +37,10 @@ public class CreditAdminController {
         return Result.success(null);
     }
     
-    @Autowired
-    private com.crediflow.credit.mapper.CreditReviewQueueMapper creditReviewQueueMapper;
-
     @GetMapping("/manual-review-queue")
     public Result<Page<com.crediflow.credit.entity.CreditReviewQueue>> listReviewQueue(
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
-        Page<com.crediflow.credit.entity.CreditReviewQueue> page = new Page<>(current, size);
-        LambdaQueryWrapper<com.crediflow.credit.entity.CreditReviewQueue> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(com.crediflow.credit.entity.CreditReviewQueue::getStatus, "PENDING")
-               .orderByAsc(com.crediflow.credit.entity.CreditReviewQueue::getCreatedAt);
-        return Result.success(creditReviewQueueMapper.selectPage(page, wrapper));
+        return Result.success(creditService.listReviewQueue(current, size));
     }
 }

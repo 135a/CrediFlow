@@ -17,4 +17,10 @@ public interface CreditService extends IService<CreditResult> {
      * 高并发安全的额度扣减接口（基于乐观锁）
      */
     void deductQuota(Long userId, java.math.BigDecimal amount);
+    
+    java.util.Map<String, Object> getQuotaSummary(Long userId);
+    void escalateRiskSignal(java.util.Map<String, Object> signalData);
+    String evaluateLoanRisk(java.util.Map<String, Object> req);
+    void enqueueLoanReview(java.util.Map<String, Object> req);
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.crediflow.credit.entity.CreditReviewQueue> listReviewQueue(long current, long size);
 }
