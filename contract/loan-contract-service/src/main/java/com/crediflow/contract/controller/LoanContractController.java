@@ -13,7 +13,7 @@ import java.util.Map;
  * 提供贷款合同相关的API接口，包括合同签署和获取合同链接功能
  */
 @RestController
-@RequestMapping("/api/app/loan-contract")
+@RequestMapping("/api/internal/contract")
 public class LoanContractController {
 
     /**
