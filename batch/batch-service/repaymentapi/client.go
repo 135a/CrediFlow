@@ -31,26 +31,38 @@ type DueRepayment struct {
 	BusinessOrderNo string `json:"businessOrderNo"`
 }
 
+// dueResponse 定义了API响应的结构体，包含状态码、数据和消息
 type dueResponse struct {
-	Code    int            `json:"code"`
-	Data    []DueRepayment `json:"data"`
-	Message string         `json:"message,omitempty"`
+	Code    int            `json:"code"`              // 状态码，0或200表示成功
+	Data    []DueRepayment `json:"data"`              // 应还款数据列表
+	Message string         `json:"message,omitempty"` // 错误消息，可选字段
 }
 
+// Client 定义了API客户端的结构，包含基础URL、密钥和HTTP客户端
 type Client struct {
-	baseURL    string
-	secret     []byte
-	httpClient *http.Client
+	baseURL    string       // API的基础URL
+	secret     []byte       // 用于请求签名的密钥
+	httpClient *http.Client // 用于发送HTTP请求的客户端
 }
 
+// NewClient 创建一个新的API客户端实例
+// 参数:
+//
+//	baseURL: API的基础URL
+//	secret: 用于请求签名的密钥
+//	timeout: 请求超时时间，如果小于等于0则使用默认的10秒
+//
+// 返回值:
+//
+//	*Client: 初始化后的客户端实例
 func NewClient(baseURL, secret string, timeout time.Duration) *Client {
 	if timeout <= 0 {
-		timeout = 10 * time.Second
+		timeout = 10 * time.Second // 设置默认超时时间为10秒
 	}
 	return &Client{
-		baseURL:    baseURL,
-		secret:     []byte(secret),
-		httpClient: &http.Client{Timeout: timeout},
+		baseURL:    baseURL,                        // 设置基础URL
+		secret:     []byte(secret),                 // 将密钥转换为字节数组
+		httpClient: &http.Client{Timeout: timeout}, // 初始化HTTP客户端，设置超时时间
 	}
 }
 
