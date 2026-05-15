@@ -10,43 +10,58 @@ import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * 贷款批准事件消费者
+ * 用于处理贷款审批通过后的相关业务逻辑，包括生成预签合同和发送合同就绪事件
+ */
 @Slf4j
 @Component
 @RocketMQMessageListener(topic = MqConstants.TOPIC_LOAN_LIFECYCLE, consumerGroup = "loan-contract-group", selectorExpression = MqConstants.TAG_LOAN_APPROVED)
 public class LoanApprovedConsumer implements RocketMQListener<LoanLifecycleMessage> {
 
+    /**
+     * 贷款合同服务接口
+     * 用于处理合同相关的业务逻辑
+     */
     @Autowired
     private LoanContractService loanContractService;
 
+    /**
+     * RocketMQ模板
+     * 用于发送消息到消息队列
+     */
     @Autowired
     private RocketMQTemplate rocketMQTemplate;
 
+    /**
+     * 信用服务客户端
+     * 用于调用信用相关的服务接口
+     */
     @Autowired
     private com.crediflow.contract.feign.CreditClient creditClient;
 
+    /**
+     * 消息处理方法
+     * 当接收到贷款批准事件时，执行以下操作：
+     * 1. 解析消息内容，获取贷款金额和期限
+     * 2. 生成预签合同（状态为INIT）
+     * 3. 发送合同就绪事件
+     *
+     * @param message 贷款生命周期消息对象，包含贷款申请相关信息
+     */
     @Override
     public void onMessage(LoanLifecycleMessage message) {
+        // 记录接收到的贷款批准事件日志
         log.info("Received LOAN_APPROVED_EVENT: {}", message);
         
         try {
+            // 解析消息中的贷款申请金额和期限
             java.util.Map<String, Object> payload = (java.util.Map<String, Object>) message.getPayload();
             java.math.BigDecimal amount = new java.math.BigDecimal(payload.get("applyAmount").toString());
             Integer term = Integer.valueOf(payload.get("term").toString());
 
-            // 1. 生成合同
+            // 1. 生成预签合同（状态 INIT）
             loanContractService.generateContract(message.getLoanApplicationId(), message.getUserId(), "LOAN_CONTRACT");
-            
-            // 2. 生成借据与还款计划
-            loanContractService.generateReceiptAndPlan(message.getLoanApplicationId(), message.getUserId(), amount, term);
-            
-            // 3. 扣减额度
-            java.util.Map<String, Object> req = new java.util.HashMap<>();
-            req.put("userId", message.getUserId());
-            req.put("amount", amount);
-            com.crediflow.common.web.Result<Void> deductResult = creditClient.deductQuota(req);
-            if (deductResult == null || deductResult.getCode() != 200) {
-                throw new RuntimeException("Deduct quota failed: " + (deductResult != null ? deductResult.getMessage() : "unknown"));
-            }
             
             // 抛出合同就绪事件
             LoanLifecycleMessage nextMsg = new LoanLifecycleMessage();
@@ -58,7 +73,7 @@ public class LoanApprovedConsumer implements RocketMQListener<LoanLifecycleMessa
             log.info("Contract generated and CONTRACT_READY_EVENT sent for LoanApplicationId: {}", message.getLoanApplicationId());
         } catch (Exception e) {
             log.error("Failed to process LOAN_APPROVED_EVENT", e);
-            throw new RuntimeException(e); // 抛出异常让 MQ 重新投递
+            throw new com.crediflow.common.exception.BusinessException(com.crediflow.common.exception.ErrorCode.BUSINESS_ERROR, "Failed to process LOAN_APPROVED_EVENT");
         }
     }
 }

@@ -1,19 +1,83 @@
 package com.crediflow.contract.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.crediflow.common.exception.BusinessException;
+import com.crediflow.common.exception.ErrorCode;
+import com.crediflow.common.web.Result;
 import com.crediflow.contract.entity.LoanContract;
+import com.crediflow.contract.entity.LoanReceipt;
+import com.crediflow.contract.entity.RepaymentPlan;
+import com.crediflow.contract.feign.CreditClient;
 import com.crediflow.contract.mapper.LoanContractMapper;
+import com.crediflow.contract.mapper.LoanReceiptMapper;
+import com.crediflow.contract.mapper.RepaymentPlanMapper;
 import com.crediflow.contract.service.LoanContractService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
+/**
+ * 贷款合同服务实现类
+ * 继承ServiceImpl并提供贷款合同相关的业务逻辑实现
+ */
 @Service
 public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, LoanContract> implements LoanContractService {
 
+    /**
+     * 借据数据访问层
+     */
+    @Autowired
+    private LoanReceiptMapper loanReceiptMapper;
+
+    /**
+     * 还款计划数据访问层
+     */
+    @Autowired
+    private RepaymentPlanMapper repaymentPlanMapper;
+
+    /**
+     * 信用额度服务客户端
+     */
+    @Autowired
+    private CreditClient creditClient;
+
+    /**
+     * 年利率配置值，默认为0.18
+     */
+    @Value("${crediflow.loan.rate.annual:0.18}")
+    private String annualRateStr;
+
+    /**
+     * 生成贷款合同
+     * @param applicationId 申请ID
+     * @param userId 用户ID
+     * @param contractType 合同类型
+     */
     @Override
     public void generateContract(Long applicationId, Long userId, String contractType) {
+        // 构建查询条件，检查是否已存在合同
+        LambdaQueryWrapper<LoanContract> query = new LambdaQueryWrapper<>();
+        query.eq(LoanContract::getApplicationId, applicationId)
+             .eq(LoanContract::getUserId, userId)
+             .last("LIMIT 1");
+             
+        // 查询已存在的合同
+        LoanContract existing = this.getOne(query);
+        if (existing != null) {
+            return; // 幂等防重：已存在合同则直接返回
+        }
+
+        // 创建新合同对象
         LoanContract contract = new LoanContract();
         contract.setContractNo("CTR" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
         contract.setApplicationId(applicationId);
@@ -24,26 +88,37 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         // TODO: 后续接入 Python 服务渲染 PDF 模板，并存储至 OSS
         contract.setContractUrl("https://oss.crediflow.com/contracts/" + contractType + "/" + contract.getContractNo() + ".pdf");
         
+        // 设置创建和更新时间
         contract.setCreatedAt(new Date());
         contract.setUpdatedAt(new Date());
         this.save(contract);
     }
 
+    /**
+     * 签署并生成合同
+     * @param userId 用户ID
+     * @param applicationId 申请ID
+     * @param amount 贷款金额
+     * @param term 贷款期限
+     * @param agreed 是否同意协议
+     * @return 包含签约状态的Map对象
+     */
     @Override
-    public java.util.Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, java.math.BigDecimal amount, Integer term, boolean agreed) {
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> signAndGenerateContract(Long userId, Long applicationId, BigDecimal amount, Integer term, boolean agreed) {
+        // 检查用户是否同意协议
         if (!agreed) {
-            throw new RuntimeException("必须同意协议才能签约");
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "必须同意协议才能签约");
         }
         
         // Find existing contract
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<LoanContract> query = 
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        LambdaQueryWrapper<LoanContract> query = new LambdaQueryWrapper<>();
         query.eq(LoanContract::getApplicationId, applicationId)
              .eq(LoanContract::getUserId, userId)
              .last("LIMIT 1");
              
         LoanContract contract = this.getOne(query);
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        Map<String, Object> map = new HashMap<>();
         
         if (contract != null && "SIGNED".equals(contract.getStatus())) {
             // Already signed, return success directly (idempotent)
@@ -65,37 +140,37 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         
         // 合同签署完毕，立刻生成借据和还款计划
         this.generateReceiptAndPlan(applicationId, userId, amount, term);
+
+        // 扣减额度
+        Map<String, Object> req = new HashMap<>();
+        req.put("userId", userId);
+        req.put("amount", amount);
+        Result<Void> deductResult = creditClient.deductQuota(req);
+        if (deductResult == null || deductResult.getCode() != 200) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Deduct quota failed: " + (deductResult != null ? deductResult.getMessage() : "unknown"));
+        }
         
         map.put("status", "SUCCESS");
         return map;
     }
 
     @Override
-    public java.util.Map<String, Object> getContractLink(Long userId, Long applicationId) {
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
+    public Map<String, Object> getContractLink(Long userId, Long applicationId) {
+        Map<String, Object> map = new HashMap<>();
         // TODO: 后续替换为从 OSS 获取真实的合同下载链接或预览 Token
         map.put("link", "https://oss.crediflow.com/contracts/dummy.pdf");
         return map;
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.crediflow.contract.mapper.LoanReceiptMapper loanReceiptMapper;
-
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.crediflow.contract.mapper.RepaymentPlanMapper repaymentPlanMapper;
-
-    @org.springframework.beans.factory.annotation.Value("${crediflow.loan.rate.annual:0.18}")
-    private String annualRateStr;
-
-    @org.springframework.transaction.annotation.Transactional
-    public void generateReceiptAndPlan(Long applicationId, Long userId, java.math.BigDecimal amount, Integer term) {
+    @Transactional(rollbackFor = Exception.class)
+    public void generateReceiptAndPlan(Long applicationId, Long userId, BigDecimal amount, Integer term) {
         // 1. 生成借据
-        com.crediflow.contract.entity.LoanReceipt receipt = new com.crediflow.contract.entity.LoanReceipt();
+        LoanReceipt receipt = new LoanReceipt();
         receipt.setReceiptNo("REC" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4));
         receipt.setApplicationId(applicationId);
         receipt.setUserId(userId);
         receipt.setPrincipalAmount(amount);
-        receipt.setAnnualInterestRate(new java.math.BigDecimal(annualRateStr)); // dynamic annual rate
+        receipt.setAnnualInterestRate(new BigDecimal(annualRateStr)); // dynamic annual rate
         receipt.setTotalTerms(term);
         receipt.setStatus("ACTIVE");
         receipt.setCreatedAt(new Date());
@@ -103,25 +178,25 @@ public class LoanContractServiceImpl extends ServiceImpl<LoanContractMapper, Loa
         loanReceiptMapper.insert(receipt);
 
         // 2. 拆分还款计划 (简单等额本金示例)
-        java.math.BigDecimal principalPerTerm = amount.divide(new java.math.BigDecimal(term), 2, java.math.RoundingMode.HALF_UP);
-        java.math.BigDecimal monthlyInterestRate = receipt.getAnnualInterestRate().divide(new java.math.BigDecimal(12), 4, java.math.RoundingMode.HALF_UP);
+        BigDecimal principalPerTerm = amount.divide(new BigDecimal(term), 2, RoundingMode.HALF_UP);
+        BigDecimal monthlyInterestRate = receipt.getAnnualInterestRate().divide(new BigDecimal(12), 4, RoundingMode.HALF_UP);
         
-        java.math.BigDecimal remainingPrincipal = amount;
-        java.util.Calendar cal = java.util.Calendar.getInstance();
+        BigDecimal remainingPrincipal = amount;
+        Calendar cal = Calendar.getInstance();
         
         for (int i = 1; i <= term; i++) {
-            com.crediflow.contract.entity.RepaymentPlan plan = new com.crediflow.contract.entity.RepaymentPlan();
+            RepaymentPlan plan = new RepaymentPlan();
             plan.setReceiptId(receipt.getId());
             plan.setUserId(userId);
             plan.setTermNo(i);
             
-            java.math.BigDecimal currentPrincipal = (i == term) ? remainingPrincipal : principalPerTerm;
-            java.math.BigDecimal currentInterest = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal currentPrincipal = (i == term) ? remainingPrincipal : principalPerTerm;
+            BigDecimal currentInterest = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
             
             plan.setPrincipalAmount(currentPrincipal);
             plan.setInterestAmount(currentInterest);
             
-            cal.add(java.util.Calendar.MONTH, 1);
+            cal.add(Calendar.MONTH, 1);
             plan.setDueDate(cal.getTime());
             plan.setStatus("PENDING");
             plan.setCreatedAt(new Date());
