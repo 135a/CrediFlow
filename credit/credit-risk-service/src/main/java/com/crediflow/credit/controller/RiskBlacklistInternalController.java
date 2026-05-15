@@ -1,6 +1,4 @@
 package com.crediflow.credit.controller;
-
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.web.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +21,6 @@ import java.util.Map;
 public class RiskBlacklistInternalController {
 
     private static final Logger log = LoggerFactory.getLogger(RiskBlacklistInternalController.class);
-
-    @Inner
     @PostMapping("/blacklist/check")
     public Result<Map<String, Object>> check(@RequestBody Map<String, String> body) {
         String fp = body == null ? null : body.get("idCardFingerprint");

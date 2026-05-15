@@ -1,7 +1,6 @@
 package com.crediflow.repayment.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.web.Result;
 import com.crediflow.repayment.entity.RepaymentPlan;
 import com.crediflow.repayment.service.RepaymentService;
@@ -40,7 +39,6 @@ public class RepaymentInternalController {
      *
      * <p>返回的 {@code businessOrderNo} 已带上随机后缀，可直接作为网关受理的业务单号。</p>
      */
-    @Inner
     @GetMapping("/due-today")
     public Result<List<DueRepaymentView>> dueToday(@RequestParam(defaultValue = "500") int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 1000));

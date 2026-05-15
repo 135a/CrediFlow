@@ -22,8 +22,6 @@ public class LoanApplicationController {
                                              @RequestParam("idmpToken") String idmpToken) {
         return Result.success(loanApplicationService.applyLoan(userId, applyAmount, term, idmpToken));
     }
-
-    @com.crediflow.common.auth.annotation.Inner
     @GetMapping("/internal/admin/list")
     public Result<com.baomidou.mybatisplus.core.metadata.IPage<LoanApplication>> listApplications(
             @RequestParam(required = false, defaultValue = "1") Integer page,
@@ -37,14 +35,10 @@ public class LoanApplicationController {
         query.orderByDesc(LoanApplication::getCreatedAt);
         return Result.success(loanApplicationService.page(pageParam, query));
     }
-
-    @com.crediflow.common.auth.annotation.Inner
     @GetMapping("/internal/admin/{id}")
     public Result<LoanApplication> getApplication(@PathVariable("id") Long id) {
         return Result.success(loanApplicationService.getById(id));
     }
-
-    @com.crediflow.common.auth.annotation.Inner
     @PostMapping("/internal/admin/{id}/review")
     public Result<Void> manualReview(@PathVariable("id") Long id,
                                      @RequestParam("action") String action,

@@ -1,7 +1,4 @@
 package com.crediflow.fund.controller;
-
-import com.crediflow.common.auth.annotation.IgnoreAuth;
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.web.Result;
 import com.crediflow.fund.service.FundFlowService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +15,6 @@ public class FundFlowController {
     private FundFlowService fundFlowService;
 
     // 内部服务调用：记录资金流水
-    @Inner
     @PostMapping("/internal/fund-flow/record")
     public Result<Void> recordFlow(@RequestParam Long userId,
                                    @RequestParam String type,
@@ -30,7 +26,6 @@ public class FundFlowController {
     }
 
     // 第三方支付回调接口：无需登录态鉴权
-    @IgnoreAuth
     @PostMapping("/callback/payment")
     public String paymentCallback(@RequestParam Map<String, String> params) {
         boolean valid = fundFlowService.verifyThirdPartyCallback(params);

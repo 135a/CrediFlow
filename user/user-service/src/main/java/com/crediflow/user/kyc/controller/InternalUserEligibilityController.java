@@ -1,7 +1,6 @@
 package com.crediflow.user.kyc.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.web.Result;
 import com.crediflow.user.bankcard.entity.UserBankCard;
 import com.crediflow.user.bankcard.mapper.UserBankCardMapper;
@@ -32,8 +31,6 @@ public class InternalUserEligibilityController {
         this.kycV2Mapper = kycV2Mapper;
         this.bankCardMapper = bankCardMapper;
     }
-
-    @Inner
     @GetMapping("/eligibility")
     public Result<Map<String, Object>> eligibility(@RequestParam("userId") Long userId) {
         Map<String, Object> resp = new HashMap<>();

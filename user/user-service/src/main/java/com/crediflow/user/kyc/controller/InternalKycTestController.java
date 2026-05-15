@@ -1,7 +1,6 @@
 package com.crediflow.user.kyc.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
@@ -44,8 +43,6 @@ public class InternalKycTestController {
         this.logMapper = logMapper;
         this.publisher = publisher;
     }
-
-    @Inner
     @PostMapping("/force-pass")
     public Result<String> forcePass(@RequestParam("userId") Long userId) {
         if (userId == null) {

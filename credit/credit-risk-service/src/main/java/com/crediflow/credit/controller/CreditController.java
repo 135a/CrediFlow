@@ -1,6 +1,4 @@
 package com.crediflow.credit.controller;
-
-import com.crediflow.common.auth.annotation.Inner;
 import com.crediflow.common.web.Result;
 import com.crediflow.credit.entity.CreditResult;
 import com.crediflow.credit.service.CreditService;
@@ -52,7 +50,6 @@ public class CreditController {
      * @param userId 用户ID，从请求参数中获取
      * @return 返回活跃信贷信息
      */
-    @Inner
     @GetMapping("/internal/active")
     public Result<CreditResult> getActiveCreditInternal(@RequestParam("userId") Long userId) {
         return Result.success(creditService.getActiveCredit(userId));
@@ -63,7 +60,6 @@ public class CreditController {
      * @param userId 用户ID，从请求参数中获取
      * @return 返回申请结果，包含申请ID和状态
      */
-    @Inner
     @PostMapping("/internal/apply")
     public Result<java.util.Map<String, Object>> applyCreditInternal(@RequestParam("userId") Long userId) {
         com.crediflow.credit.entity.CreditApplication app = creditService.applyCredit(userId);
@@ -78,7 +74,6 @@ public class CreditController {
      * @param userId 用户ID，从请求参数中获取
      * @return 返回信贷状态信息，包含状态、申请ID和是否需要二次人脸识别
      */
-    @Inner
     @GetMapping("/internal/status")
     public Result<java.util.Map<String, Object>> getCreditStatusInternal(@RequestParam("userId") Long userId) {
         // 创建查询条件，查询用户最新的信贷申请
@@ -104,7 +99,6 @@ public class CreditController {
      * @param userId 用户ID，从请求参数中获取
      * @return 返回信贷额度信息，包含总额度、可用额度和已用额度
      */
-    @Inner
     @GetMapping("/internal/quota")
     public Result<java.util.Map<String, Object>> getCreditQuotaInternal(@RequestParam("userId") Long userId) {
         // 创建查询条件，查询用户最新的信贷额度信息
@@ -127,7 +121,6 @@ public class CreditController {
      * @param userId 用户ID，从请求参数中获取
      * @return 返回上次审核结果，包含状态、审核原因和安全洞察
      */
-    @Inner
     @GetMapping("/internal/last-result")
     public Result<java.util.Map<String, Object>> getLastResultInternal(@RequestParam("userId") Long userId) {
         // 创建查询条件，查询用户最新的信贷申请
@@ -156,7 +149,6 @@ public class CreditController {
      * @param signalData 包含用户ID、聊天记录、代理建议和风险类型的数据
      * @return 返回操作结果
      */
-    @Inner
     @PostMapping("/internal/risk-signal/escalate")
     public Result<Void> escalateRiskSignal(@RequestBody java.util.Map<String, Object> signalData) {
         Long userId = Long.valueOf(signalData.get("userId").toString());
@@ -191,8 +183,6 @@ public class CreditController {
 
     @Autowired
     private com.crediflow.credit.service.scoring.CreditScoringEngine creditScoringEngine;
-
-    @Inner
     @PostMapping("/internal/evaluate-loan")
     public Result<String> evaluateLoanRisk(@RequestBody java.util.Map<String, Object> req) {
         Long userId = Long.valueOf(req.get("userId").toString());
@@ -226,8 +216,6 @@ public class CreditController {
 
     @Autowired
     private com.crediflow.credit.service.impl.ManualReviewAsyncService manualReviewAsyncService;
-
-    @Inner
     @PostMapping("/internal/review/enqueue")
     public Result<Void> enqueueLoanReview(@RequestBody java.util.Map<String, Object> req) {
         Long applicationId = Long.valueOf(req.get("applicationId").toString());
@@ -249,8 +237,6 @@ public class CreditController {
             
         return Result.success();
     }
-
-    @Inner
     @PostMapping("/internal/quota/deduct")
     public Result<Void> deductQuota(@RequestBody java.util.Map<String, Object> req) {
         Long userId = Long.valueOf(req.get("userId").toString());
