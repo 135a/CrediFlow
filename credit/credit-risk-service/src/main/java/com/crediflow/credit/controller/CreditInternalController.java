@@ -48,7 +48,7 @@ public class CreditInternalController {
         CreditApplication app = creditService.applyCredit(userId);
         java.util.Map<String, Object> map = new java.util.HashMap<>();
         map.put("applicationId", app.getId());  // 存储申请ID
-        map.put("status", app.getStatus());    // 存储申请状态
+        map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
         return Result.success(map);
     }
 

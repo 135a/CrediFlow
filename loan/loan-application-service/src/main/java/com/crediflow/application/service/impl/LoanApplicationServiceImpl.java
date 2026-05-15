@@ -5,6 +5,7 @@ import com.crediflow.application.entity.LoanApplication;
 import com.crediflow.application.feign.CreditClient;
 import com.crediflow.application.mapper.LoanApplicationMapper;
 import com.crediflow.application.service.LoanApplicationService;
+import com.crediflow.common.api.user.UserEligibilityResponse;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
@@ -40,17 +41,16 @@ public class LoanApplicationServiceImpl extends ServiceImpl<LoanApplicationMappe
         }
 
         // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
-        Result<Map<String, Object>> eligibility = userClient.getEligibility(userId);
+        Result<UserEligibilityResponse> eligibility = userClient.getEligibility(userId);
         if (eligibility == null || eligibility.getData() == null) {
             throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED, "请先完成 KYC 实名实人核验");
         }
-        boolean kycPassed = Boolean.TRUE.equals(eligibility.getData().get("kycPassed"));
-        boolean hasPrimary = Boolean.TRUE.equals(eligibility.getData().get("hasPrimaryBankCard"));
-        if (!kycPassed) {
+        UserEligibilityResponse gate = eligibility.getData();
+        if (!gate.isKycPassed()) {
             throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED,
                     ErrorCode.KYC_FACE_NOT_VERIFIED.getMessage());
         }
-        if (!hasPrimary) {
+        if (!gate.isHasPrimaryBankCard()) {
             throw new BusinessException(ErrorCode.KYC_BANKCARD_REQUIRED,
                     ErrorCode.KYC_BANKCARD_REQUIRED.getMessage());
         }

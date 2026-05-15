@@ -3,6 +3,7 @@ package com.crediflow.credit.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.crediflow.credit.enums.CreditApplicationStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -16,18 +17,12 @@ public class CreditApplication {
     private Long userId;
     private BigDecimal applyAmount;
     private BigDecimal suggestedAmount;
-    public static final String STATUS_PENDING_HARD_RULES = "PENDING_HARD_RULES";
-    public static final String STATUS_PENDING_SCORING = "PENDING_SCORING";
-    public static final String STATUS_PENDING_ROUTING = "PENDING_ROUTING";
-    public static final String STATUS_PENDING_SECONDARY_FACE = "PENDING_SECONDARY_FACE";
-    public static final String STATUS_PENDING_MANUAL_REVIEW = "PENDING_MANUAL_REVIEW";
-    public static final String STATUS_CONTRACT_PENDING = "CONTRACT_PENDING";
-    public static final String STATUS_APPROVED = "APPROVED";
-    public static final String STATUS_REJECTED = "REJECTED";
-    public static final String STATUS_COMPLETED = "COMPLETED";
 
-    private String status; // Using the constants above
-    private String modelRiskLevel; // LOW, MEDIUM, HIGH
+    /** 申请流程状态，与库表 status 列枚举值一致 */
+    private CreditApplicationStatus status;
+
+    /** 模型风险档：LOW / MEDIUM / HIGH */
+    private String modelRiskLevel;
     private Boolean secondaryFaceRequired;
     private String auditReason;
     private String riskInsight;

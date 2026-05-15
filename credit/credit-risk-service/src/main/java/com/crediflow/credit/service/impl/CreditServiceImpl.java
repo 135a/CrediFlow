@@ -2,11 +2,20 @@ package com.crediflow.credit.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.crediflow.common.api.user.UserEligibilityResponse;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
+import com.crediflow.credit.entity.CreditApplication;
 import com.crediflow.credit.entity.CreditResult;
+import com.crediflow.credit.entity.CreditReviewQueue;
+import com.crediflow.credit.enums.CreditApplicationStatus;
+import com.crediflow.credit.enums.ModelRiskLevel;
+import com.crediflow.credit.enums.ReviewQueueStatus;
+import com.crediflow.credit.enums.ReviewSceneType;
 import com.crediflow.credit.feign.AgentClient;
+import com.crediflow.credit.feign.dto.CreditRejectionInsightRequest;
+import com.crediflow.credit.feign.dto.CreditRejectionInsightResponse;
 import com.crediflow.credit.mapper.CreditResultMapper;
 import com.crediflow.credit.service.CreditService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,29 +73,20 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
     private com.crediflow.credit.service.impl.ManualReviewAsyncService manualReviewAsyncService;
 
     @Override
-    public com.crediflow.credit.entity.CreditApplication applyCredit(Long userId) {
-        // 0. KYC v2 + 主卡校验（OpenSpec: kyc-realname-face-bankcard-rebuild）
-        Result<Map<String, Object>> eligibility = userClient.getEligibility(userId);
+    public CreditApplication applyCredit(Long userId) {
+        Result<UserEligibilityResponse> eligibility = userClient.getEligibility(userId);
         if (eligibility == null || eligibility.getData() == null) {
             throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED, "请先完成 KYC 实名实人核验");
         }
-        Object kycPassedObj = eligibility.getData().get("kycPassed");
-        Object hasPrimaryObj = eligibility.getData().get("hasPrimaryBankCard");
-        boolean kycPassed = Boolean.TRUE.equals(kycPassedObj);
-        boolean hasPrimary = Boolean.TRUE.equals(hasPrimaryObj);
-        if (!kycPassed) {
+        UserEligibilityResponse gate = eligibility.getData();
+        if (!gate.isKycPassed()) {
             throw new BusinessException(ErrorCode.KYC_FACE_NOT_VERIFIED,
                     ErrorCode.KYC_FACE_NOT_VERIFIED.getMessage());
         }
-        if (!hasPrimary) {
+        if (!gate.isHasPrimaryBankCard()) {
             throw new BusinessException(ErrorCode.KYC_BANKCARD_REQUIRED,
                     ErrorCode.KYC_BANKCARD_REQUIRED.getMessage());
         }
-
-        // KYC 通过后再读旧 status 接口拿画像字段（仅用于风控建模上下文，不再作为门禁）
-        Result<Map<String, Object>> kycResult = userClient.getKycStatus(userId);
-        Map<String, Object> kycData = kycResult == null || kycResult.getData() == null
-                ? Map.of() : kycResult.getData();
 
         // 1. 检查是否已有活跃授信
         CreditResult existing = getActiveCredit(userId);
@@ -95,10 +95,10 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         }
 
         // 2. 初始化申请单
-        com.crediflow.credit.entity.CreditApplication application = new com.crediflow.credit.entity.CreditApplication();
+        CreditApplication application = new CreditApplication();
         application.setUserId(userId);
         application.setApplyAmount(new BigDecimal("5000.00")); // 占位额度
-        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_HARD_RULES);
+        application.setStatus(CreditApplicationStatus.PENDING_HARD_RULES);
         application.setCreatedAt(new Date());
         application.setUpdatedAt(new Date());
         creditApplicationService.save(application);
@@ -106,15 +106,15 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         // 3. 执行硬规则 (Phase 1.1)
         HardRuleResult hardRuleResult = hardRuleEngine.evaluate(userId);
         if (!hardRuleResult.isPassed()) {
-            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_REJECTED);
+            application.setStatus(CreditApplicationStatus.REJECTED);
             application.setAuditReason(hardRuleResult.getRejectCode() + ": " + hardRuleResult.getAuditDetail());
             
             try {
-                // 7.2 Async or sync call to Agent for insight
-                Map<String, Object> req = Map.of("ruleSummaries", java.util.List.of(hardRuleResult.getRejectCode()));
-                Map<String, Object> insight = agentClient.creditRejectionInsight(req);
-                application.setRiskInsight((String) insight.get("adminInsight"));
-                application.setUserSafeInsight((String) insight.get("userSafeInsight"));
+                CreditRejectionInsightRequest req = new CreditRejectionInsightRequest(
+                        java.util.List.of(hardRuleResult.getRejectCode()));
+                CreditRejectionInsightResponse insight = agentClient.creditRejectionInsight(req);
+                application.setRiskInsight(insight.getAdminInsight());
+                application.setUserSafeInsight(insight.getUserSafeInsight());
             } catch (Exception e) {
                 log.error("Failed to fetch rejection insight from Agent", e);
                 application.setUserSafeInsight("综合评估未通过，请保持良好信用记录后重试");
@@ -126,7 +126,7 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         }
 
         // 4. 执行评分 (Phase 1.2 & 1.3)
-        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_SCORING);
+        application.setStatus(CreditApplicationStatus.PENDING_SCORING);
         creditApplicationService.updateById(application);
         
         ScoreDetail scoreDetail = creditScoringEngine.calculateScore(userId);
@@ -148,12 +148,11 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         application.setModelRiskLevel(scoreDetail.getRiskLevel());
 
         // 5. 确定性路由 (Phase 2.3)
-        application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_ROUTING);
+        application.setStatus(CreditApplicationStatus.PENDING_ROUTING);
         creditApplicationService.updateById(application);
         
-        if ("LOW".equals(scoreDetail.getRiskLevel())) {
-            // 低风险直过
-            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_APPROVED);
+        if (ModelRiskLevel.LOW.getCode().equals(scoreDetail.getRiskLevel())) {
+            application.setStatus(CreditApplicationStatus.APPROVED);
             application.setSecondaryFaceRequired(false);
             application.setUpdatedAt(new Date());
             creditApplicationService.updateById(application);
@@ -161,7 +160,7 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
             generateUserQuota(userId, scoreDetail.getTotalScore());
         } else {
             // 中风险/高风险，强制二次人脸
-            application.setStatus(com.crediflow.credit.entity.CreditApplication.STATUS_PENDING_SECONDARY_FACE);
+            application.setStatus(CreditApplicationStatus.PENDING_SECONDARY_FACE);
             application.setSecondaryFaceRequired(true);
             application.setUpdatedAt(new Date());
             creditApplicationService.updateById(application);
@@ -185,16 +184,15 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
 
     @Override
     public void manualApprove(Long applicationId, String remark) {
-        com.crediflow.credit.entity.CreditApplication application = creditApplicationService.getById(applicationId);
+        CreditApplication application = creditApplicationService.getById(applicationId);
         if (application == null) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "申请记录不存在");
         }
-        if (!"REJECTED".equals(application.getStatus())) {
+        if (application.getStatus() != CreditApplicationStatus.REJECTED) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "仅允许对已拒绝的申请进行干预");
         }
 
-        // 修改状态为通过
-        application.setStatus("APPROVED");
+        application.setStatus(CreditApplicationStatus.APPROVED);
         application.setAuditReason(application.getAuditReason() + " | [人工审核强制通过]: " + remark);
         application.setUpdatedAt(new Date());
         creditApplicationService.updateById(application);
@@ -291,21 +289,22 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         String suggestion = (String) signalData.get("agentSuggestions");
         String riskType = (String) signalData.get("riskType");
         
-        com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
+        CreditReviewQueue queue = new CreditReviewQueue();
         queue.setUserId(userId);
         
-        LambdaQueryWrapper<com.crediflow.credit.entity.CreditApplication> query = new LambdaQueryWrapper<>();
-        query.eq(com.crediflow.credit.entity.CreditApplication::getUserId, userId)
-             .orderByDesc(com.crediflow.credit.entity.CreditApplication::getCreatedAt)
+        LambdaQueryWrapper<CreditApplication> query = new LambdaQueryWrapper<>();
+        query.eq(CreditApplication::getUserId, userId)
+             .orderByDesc(CreditApplication::getCreatedAt)
              .last("LIMIT 1");
-        com.crediflow.credit.entity.CreditApplication app = creditApplicationService.getOne(query);
+        CreditApplication app = creditApplicationService.getOne(query);
         
         queue.setApplicationId(app != null ? app.getId() : 0L);
+        queue.setSceneType(ReviewSceneType.CREDIT);
         queue.setRiskDetails("[\"对话意图预警：" + riskType + "\", \"相关聊天记录：" + chatLogs.toString() + "\"]");
         queue.setDefaultProbability(0.85);
         queue.setFraudProbability(0.50);
         queue.setAiSuggestion(suggestion);
-        queue.setStatus("PENDING");
+        queue.setStatus(ReviewQueueStatus.PENDING);
         queue.setCreatedAt(new Date());
         queue.setUpdatedAt(new Date());
         
@@ -343,11 +342,11 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
         Long userId = Long.valueOf(req.get("userId").toString());
         String sceneType = (String) req.getOrDefault("sceneType", "LOAN");
         
-        com.crediflow.credit.entity.CreditReviewQueue queue = new com.crediflow.credit.entity.CreditReviewQueue();
+        CreditReviewQueue queue = new CreditReviewQueue();
         queue.setApplicationId(applicationId);
         queue.setUserId(userId);
-        queue.setSceneType(sceneType);
-        queue.setStatus("PENDING");
+        queue.setSceneType(ReviewSceneType.fromCode(sceneType));
+        queue.setStatus(ReviewQueueStatus.PENDING);
         queue.setCreatedAt(new Date());
         queue.setUpdatedAt(new Date());
         
@@ -357,12 +356,12 @@ public class CreditServiceImpl extends ServiceImpl<CreditResultMapper, CreditRes
     }
 
     @Override
-    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.crediflow.credit.entity.CreditReviewQueue> listReviewQueue(long current, long size) {
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.crediflow.credit.entity.CreditReviewQueue> page = 
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<CreditReviewQueue> listReviewQueue(long current, long size) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<CreditReviewQueue> page =
                 new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size);
-        LambdaQueryWrapper<com.crediflow.credit.entity.CreditReviewQueue> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(com.crediflow.credit.entity.CreditReviewQueue::getStatus, "PENDING")
-               .orderByAsc(com.crediflow.credit.entity.CreditReviewQueue::getCreatedAt);
+        LambdaQueryWrapper<CreditReviewQueue> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CreditReviewQueue::getStatus, ReviewQueueStatus.PENDING)
+               .orderByAsc(CreditReviewQueue::getCreatedAt);
         return creditReviewQueueMapper.selectPage(page, wrapper);
     }
 }

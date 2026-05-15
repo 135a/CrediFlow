@@ -1,6 +1,7 @@
 package com.crediflow.user.kyc.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.crediflow.common.api.user.UserEligibilityResponse;
 import com.crediflow.common.web.Result;
 import com.crediflow.user.bankcard.entity.UserBankCard;
 import com.crediflow.user.bankcard.mapper.UserBankCardMapper;
@@ -11,13 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * 内部反查接口：授信 / 借款受理前置使用。
- * <p>仅返回 {@code kycPassed} 与 {@code hasPrimaryBankCard}，
- * MUST NOT 暴露明文姓名 / 身份证 / 卡号 / 失败原因。</p>
+ * 内部反查：仅返回 kycPassed / hasPrimaryBankCard，不暴露明文 PII。
  */
 @RestController
 @RequestMapping("/api/internal/user")
@@ -31,9 +27,9 @@ public class InternalUserEligibilityController {
         this.kycV2Mapper = kycV2Mapper;
         this.bankCardMapper = bankCardMapper;
     }
+
     @GetMapping("/eligibility")
-    public Result<Map<String, Object>> eligibility(@RequestParam("userId") Long userId) {
-        Map<String, Object> resp = new HashMap<>();
+    public Result<UserEligibilityResponse> eligibility(@RequestParam("userId") Long userId) {
         boolean kycPassed = false;
         if (userId != null) {
             UserKycV2 kyc = kycV2Mapper.selectOne(new LambdaQueryWrapper<UserKycV2>()
@@ -48,8 +44,6 @@ public class InternalUserEligibilityController {
                     .eq(UserBankCard::getIsPrimary, Boolean.TRUE));
             hasPrimary = count != null && count > 0;
         }
-        resp.put("kycPassed", kycPassed);
-        resp.put("hasPrimaryBankCard", hasPrimary);
-        return Result.success(resp);
+        return Result.success(new UserEligibilityResponse(kycPassed, hasPrimary));
     }
 }

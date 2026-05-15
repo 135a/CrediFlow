@@ -1,0 +1,16 @@
+package com.crediflow.credit.enums;
+
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum ReviewQueueStatus {
+    PENDING("PENDING"),
+    APPROVED("APPROVED"),
+    REJECTED("REJECTED");
+
+    @EnumValue
+    private final String code;
+}

@@ -1,5 +1,6 @@
 package com.crediflow.user.controller;
 
+import com.crediflow.common.api.user.UserKycStatusResponse;
 import com.crediflow.common.exception.BusinessException;
 import com.crediflow.common.exception.ErrorCode;
 import com.crediflow.common.web.Result;
@@ -97,9 +98,26 @@ public class UserKycController {
     }
 
     @GetMapping("/status")
-    public Result<Map<String, Object>> getStatus(@RequestParam Long userId) {
+    public Result<UserKycStatusResponse> getStatus(@RequestParam Long userId) {
         UserKyc kyc = userKycService.getByUserId(userId);
-        return Result.success(toView(kyc).toMap());
+        return Result.success(toResponse(toView(kyc)));
+    }
+
+    private static UserKycStatusResponse toResponse(UserKycStatusView v) {
+        UserKycStatusResponse r = new UserKycStatusResponse();
+        r.setUserId(v.getUserId());
+        r.setStepStatus(v.getStepStatus());
+        r.setRealnameStatus(v.getRealnameStatus());
+        r.setIdCardMask(v.getIdCardMask());
+        r.setMonthlyIncome(v.getMonthlyIncome());
+        r.setBirthDate(v.getBirthDate());
+        r.setResidence(v.getResidence());
+        r.setOccupation(v.getOccupation());
+        r.setRealName(v.getRealName());
+        r.setAge(v.getAge());
+        r.setPaymentMethod(v.getPaymentMethod());
+        r.setPaymentAccount(v.getPaymentAccount());
+        return r;
     }
 
     private static UserKycStatusView toView(UserKyc k) {

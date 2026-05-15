@@ -31,7 +31,7 @@ public class CreditApplicationServiceImpl extends ServiceImpl<CreditApplicationM
         CreditApplication app = this.getOne(query);
         Map<String, Object> map = new HashMap<>();
         if (app != null) {
-            map.put("status", app.getStatus());
+            map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
             map.put("applicationId", app.getId());
             map.put("secondaryFaceRequired", app.getSecondaryFaceRequired());
         } else {
@@ -50,7 +50,7 @@ public class CreditApplicationServiceImpl extends ServiceImpl<CreditApplicationM
         CreditApplication app = this.getOne(query);
         Map<String, Object> map = new HashMap<>();
         if (app != null) {
-            map.put("status", app.getStatus());
+            map.put("status", app.getStatus() != null ? app.getStatus().getCode() : null);
             map.put("auditReason", app.getAuditReason());
             map.put("userSafeInsight", app.getUserSafeInsight() != null ? app.getUserSafeInsight() : "综合评估未通过，请保持良好信用记录后重试"); 
         }

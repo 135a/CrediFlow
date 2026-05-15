@@ -7,7 +7,6 @@ import com.crediflow.common.web.Result;
 import com.crediflow.user.eligibility.config.KycEligibilityProperties;
 import com.crediflow.user.eligibility.entity.IdCardBlacklist;
 import com.crediflow.user.eligibility.feign.RiskBlacklistClient;
-import com.crediflow.user.eligibility.feign.dto.BlacklistCheckRequest;
 import com.crediflow.user.eligibility.feign.dto.BlacklistCheckResponse;
 import com.crediflow.user.eligibility.mapper.IdCardBlacklistMapper;
 import org.slf4j.Logger;
@@ -46,11 +45,9 @@ public class BlacklistPolicy {
         if (!properties.isRiskServiceEnabled()) {
             return Decision.pass();
         }
-        BlacklistCheckRequest req = new BlacklistCheckRequest();
-        req.setIdCardFingerprint(idCardFingerprint);
         Result<BlacklistCheckResponse> resp;
         try {
-            resp = riskClient.check(req);
+            resp = riskClient.check(idCardFingerprint);
         } catch (Exception e) {
             log.warn("[eligibility] risk blacklist upstream error: {}", e.toString());
             throw new BusinessException(ErrorCode.KYC_RISK_UPSTREAM_UNAVAILABLE,

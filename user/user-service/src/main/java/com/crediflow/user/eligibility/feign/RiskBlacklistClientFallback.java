@@ -1,7 +1,6 @@
 package com.crediflow.user.eligibility.feign;
 
 import com.crediflow.common.web.Result;
-import com.crediflow.user.eligibility.feign.dto.BlacklistCheckRequest;
 import com.crediflow.user.eligibility.feign.dto.BlacklistCheckResponse;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Component;
 class RiskBlacklistClientFallback implements RiskBlacklistClient {
 
     @Override
-    public Result<BlacklistCheckResponse> check(BlacklistCheckRequest request) {
+    public Result<BlacklistCheckResponse> check(String idCardFingerprint) {
         return Result.error(500, "RISK_UPSTREAM_UNAVAILABLE", null);
     }
 }
